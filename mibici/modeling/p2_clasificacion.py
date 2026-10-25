@@ -34,7 +34,9 @@ from mibici.config import (
     MANIFEST_PATH,
     MLFLOW_TRACKING_URI,
     P2_FRACCION_CAPACIDAD,
+    P2_HGB_PARAMS,
     P2_HORIZONTE_HORAS,
+    P2_LOGREG_PARAMS,
     P2_MAX_DURATION_SECONDS,
     P2_MIN_DURATION_SECONDS,
     P2_MLFLOW_BASELINE_RUN_NAME,
@@ -108,25 +110,19 @@ def cortar(df: pd.DataFrame, inicio: str, fin: str) -> pd.DataFrame:
     return df.loc[(hora >= pd.Timestamp(inicio)) & (hora < limite)]
 
 
-def construir_baseline() -> Pipeline:
+def construir_baseline(params: dict) -> Pipeline:
     """Baseline: regresión logística con features escaladas y pesos para la clase rara."""
     return Pipeline(
         [
             ("scaler", StandardScaler()),
-            ("modelo", LogisticRegression(class_weight="balanced", max_iter=1000)),
+            ("modelo", LogisticRegression(**params)),
         ]
     )
 
 
-def construir_candidato() -> HistGradientBoostingClassifier:
+def construir_candidato(params: dict) -> HistGradientBoostingClassifier:
     """Candidato: HistGradientBoosting, también con class_weight balanceado."""
-    return HistGradientBoostingClassifier(
-        class_weight="balanced",
-        max_iter=200,
-        learning_rate=0.1,
-        early_stopping=False,
-        random_state=SEED,
-    )
+    return HistGradientBoostingClassifier(**{"random_state": SEED, **params})
 
 
 def elegir_umbral(y_val: pd.Series, prob_val) -> float:
@@ -182,7 +178,7 @@ def guardar_graficas(nombre: str, y, prob, umbral: float) -> list[Path]:
     return [ruta_cm, ruta_pr, ruta_reporte]
 
 
-def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto) -> dict:
+def entrenar_y_registrar(nombre_run, etapa, modelo, params_modelo, datos, contexto) -> dict:
     """Entrena, elige el umbral en validación, evalúa los tres conjuntos y sube todo a MLflow."""
     (x_train, y_train, t_train), (x_val, y_val, t_val), (x_test, y_test, t_test) = datos
 
@@ -213,12 +209,11 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto) -> dict:
         )
         mlflow.log_params(
             {
-                "modelo": type(modelo).__name__,
+                **params_modelo,
                 "definicion_riesgo": "abs(neto t+1..t+H) >= fraccion * dpcapacity",
                 "horizonte_horas": P2_HORIZONTE_HORAS,
                 "fraccion_capacidad": P2_FRACCION_CAPACIDAD,
                 "umbral_decision": round(umbral, 4),
-                "class_weight": "balanced",
                 "features": len(P2_FEATURES),
                 "train_inicio": P2_TRAIN_START,
                 "val_inicio": P2_VAL_START,
@@ -247,10 +242,11 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto) -> dict:
     return metricas
 
 
-@app.command()
-def main(viajes_path: Path = VIAJES_PARQUET, experiment_name: str = P2_MLFLOW_EXPERIMENT):
-    """Pipeline completo de P2: datos, partición, baseline, candidato y registro en MLflow."""
-    logger.info("Iniciando pipeline P2")
+MODELOS = ("baseline", "hgb")
+
+
+def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
+    """Panel estación x hora, etiqueta, features y partición temporal."""
     P2_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # 1. Panel estación x hora, etiqueta y features
@@ -316,17 +312,62 @@ def main(viajes_path: Path = VIAJES_PARQUET, experiment_name: str = P2_MLFLOW_EX
             "filas_test": len(test),
         },
     }
+    return datos, contexto
+
+
+def construir_modelo(nombre: str, params: dict):
+    """Devuelve (modelo, etapa, nombre de run por defecto, parámetros a registrar)."""
+    if nombre == "baseline":
+        p = {**P2_LOGREG_PARAMS, **params}
+        params_log = {"modelo": "LogisticRegression", **p}
+        return construir_baseline(p), "baseline", P2_MLFLOW_BASELINE_RUN_NAME, params_log
+    if nombre == "hgb":
+        p = {**P2_HGB_PARAMS, **params}
+        params_log = {"modelo": "HistGradientBoostingClassifier", **p}
+        return construir_candidato(p), "candidato", P2_MLFLOW_CANDIDATE_RUN_NAME, params_log
+    raise ValueError(f"Modelo de P2 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)} o all.")
+
+
+def ejecutar(
+    model: str = "all",
+    params: dict | None = None,
+    run_name: str | None = None,
+    viajes_path: Path = VIAJES_PARQUET,
+    experiment_name: str = P2_MLFLOW_EXPERIMENT,
+) -> dict:
+    """Entrena y registra en MLflow un modelo de P2 (o todos con model="all")."""
+    params = params or {}
+    if model == "all" and (params or run_name):
+        raise ValueError("params y run_name solo se pueden usar al entrenar un modelo concreto.")
+    nombres = MODELOS if model == "all" else (model,)
+    for nombre in nombres:
+        construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+
+    logger.info(f"Iniciando pipeline P2 | modelos={', '.join(nombres)} | params={params}")
+    datos, contexto = preparar_datos(viajes_path)
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
 
-    entrenar_y_registrar(
-        P2_MLFLOW_BASELINE_RUN_NAME, "baseline", construir_baseline(), datos, contexto
-    )
-    entrenar_y_registrar(
-        P2_MLFLOW_CANDIDATE_RUN_NAME, "candidato", construir_candidato(), datos, contexto
-    )
+    resultados = {}
+    for nombre in nombres:
+        modelo, etapa, run_default, params_log = construir_modelo(nombre, params)
+        resultados[nombre] = entrenar_y_registrar(
+            run_name or run_default, etapa, modelo, params_log, datos, contexto
+        )
     logger.success("Pipeline P2 terminado")
+    return resultados
 
+
+@app.command()
+def main(
+    model: str = typer.Option("all", help="baseline, hgb o all."),
+    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
+    viajes_path: Path = VIAJES_PARQUET,
+    experiment_name: str = P2_MLFLOW_EXPERIMENT,
+):
+    """Pipeline de P2: datos, partición, entrenamiento y registro en MLflow."""
+    ejecutar(model, json.loads(params_json), run_name or None, viajes_path, experiment_name)
 
 if __name__ == "__main__":
     app()

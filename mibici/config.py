@@ -150,3 +150,22 @@ P1_MLFLOW_CANDIDATE_RUN_NAME = "p1_candidato_hgb_poisson"
 P1_QUESTION = "¿Cuántos viajes se iniciarán en cada estación el día siguiente?"
 
 P1_OUTPUT_DIR = REPORTS_DIR / "p1"
+
+
+# ---------- MLflow Project: modelos e hiperparámetros por defecto ----------
+P1_POISSON_PARAMS = {"alpha": P1_LINEAL_ALPHA, "max_iter": 1000}
+
+P2_LOGREG_PARAMS = {"class_weight": "balanced", "max_iter": 1000}
+P2_HGB_PARAMS = {
+    "class_weight": "balanced",
+    "max_iter": 200,
+    "learning_rate": 0.1,
+    "early_stopping": False,
+}
+
+P3_BASELINE_PARAMS = {"n_clusters": P3_BASELINE_K, "n_init": P3_N_INIT}
+P3_AGGLO_PARAMS = {"n_clusters": P3_N_CLUSTERS, "linkage": P3_AGGLO_LINKAGE}
+P3_KMEANS_PARAMS = {"n_clusters": P3_N_CLUSTERS, "n_init": P3_N_INIT}
+
+# Modelo que entrena el entry point `train` cuando se usa -P model=default.
+MODELO_DEFAULT = {"p1": "hgb", "p2": "hgb", "p3": "kmeans"}

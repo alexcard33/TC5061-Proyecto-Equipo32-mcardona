@@ -32,9 +32,10 @@ from mibici.config import (
     ESTACIONES_PARQUET,
     MANIFEST_PATH,
     MLFLOW_TRACKING_URI,
-    P3_AGGLO_LINKAGE,
-    P3_BASELINE_K,
+    P3_AGGLO_PARAMS,
+    P3_BASELINE_PARAMS,
     P3_GEO_PATH,
+    P3_KMEANS_PARAMS,
     P3_MAP_PATH,
     P3_MAX_DURATION_SECONDS,
     P3_MAX_INACTIVITY_DAYS,
@@ -45,8 +46,6 @@ from mibici.config import (
     P3_MLFLOW_EXPERIMENT,
     P3_MLFLOW_RUN_NAME,
     P3_MODEL_PATH,
-    P3_N_CLUSTERS,
-    P3_N_INIT,
     P3_OUTPUT_DIR,
     P3_PCA_PATH,
     P3_QUESTION,
@@ -351,14 +350,14 @@ def generar_mapa(
     mapa.save(output_path)
 
 
-@app.command()
-def main(
+MODELOS = ("baseline", "agglomerative", "kmeans")
+
+
+def preparar_datos(
     viajes_path: Path = VIAJES_PARQUET,
     estaciones_path: Path = ESTACIONES_PARQUET,
-    experiment_name: str = P3_MLFLOW_EXPERIMENT,
-):
-    logger.info("Iniciando pipeline P3")
-
+) -> dict:
+    """Viajes filtrados, partición temporal y features escaladas de TRAIN, TEST e histórico."""
     P3_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     P3_PCA_PATH.parent.mkdir(parents=True, exist_ok=True)
     P3_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -432,34 +431,81 @@ def main(
         features_reducido
     )
 
-    baseline = KMeans(
-        n_clusters=P3_BASELINE_K,
-        random_state=SEED,
-        n_init=P3_N_INIT,
-    )
+    return {
+        "viajes": viajes,
+        "estaciones": estaciones,
+        "train": train,
+        "test": test,
+        "features_train": features_train,
+        "x_train": x_train,
+        "x_test": x_test,
+        "x_reducido": x_reducido,
+        "scaler": scaler,
+    }
 
-    labels_baseline = pd.Series(
-        baseline.fit_predict(x_train),
-        index=x_train.index,
-        name="cluster_baseline",
-    )
 
-    candidato = AgglomerativeClustering(
-        n_clusters=P3_N_CLUSTERS,
-        linkage=P3_AGGLO_LINKAGE,
-    )
+def params_comunes(data_version: str) -> dict:
+    """Parámetros de datos y preprocesamiento que comparten todos los runs de P3."""
+    return {
+        "features": len(P3_MODEL_FEATURES),
+        "data_version": data_version,
+        "max_inactivity_days": P3_MAX_INACTIVITY_DAYS,
+        "min_history_days": P3_MIN_HISTORY_DAYS,
+        "min_duration_seconds": P3_MIN_DURATION_SECONDS,
+        "max_duration_seconds": P3_MAX_DURATION_SECONDS,
+        "train_inicio": P3_TRAIN_START[:10],
+        "train_fin": P3_TRAIN_END[:10],
+        "transformacion_intensidad": "log1p",
+        "scaler": "StandardScaler",
+    }
 
-    labels_candidato = pd.Series(
-        candidato.fit_predict(x_train),
-        index=x_train.index,
-        name="cluster_candidato",
-    )
 
-    modelo = KMeans(
-        n_clusters=P3_N_CLUSTERS,
-        random_state=SEED,
-        n_init=P3_N_INIT,
+def correr_comparacion(modelo, etapa, params_log, run_name, d, git_commit, data_version) -> dict:
+    """Ajusta un modelo de comparación (baseline o agglomerative) y registra sus métricas TRAIN."""
+    x_train = d["x_train"]
+    labels = pd.Series(modelo.fit_predict(x_train), index=x_train.index)
+    metricas = {
+        "train_silhouette": silhouette_score(x_train, labels),
+        "train_davies_bouldin": davies_bouldin_score(x_train, labels),
+        "train_calinski_harabasz": calinski_harabasz_score(x_train, labels),
+    }
+
+    with mlflow.start_run(run_name=run_name):
+        mlflow.log_params({**params_log, **params_comunes(data_version)})
+        mlflow.log_metrics(metricas)
+        mlflow.set_tags(
+            {
+                "equipo": TEAM_ID,
+                "mlflow.user": TEAM_ID,
+                "problema": "P3",
+                "tipo": "clustering",
+                "etapa": etapa,
+                "pregunta": P3_QUESTION,
+                "git_commit": git_commit,
+                "data_version": data_version,
+            }
+        )
+
+    logger.info(
+        f"{run_name}: train_silhouette={metricas['train_silhouette']:.4f} "
+        f"train_davies_bouldin={metricas['train_davies_bouldin']:.4f}"
     )
+    return metricas
+
+
+def correr_kmeans_final(params_kmeans, run_name, d, git_commit, data_version) -> dict:
+    """Modelo final: K-Means, perfiles, estabilidad TRAIN-TEST, mapa, PCA y bundle."""
+    viajes = d["viajes"]
+    estaciones = d["estaciones"]
+    train = d["train"]
+    test = d["test"]
+    features_train = d["features_train"]
+    x_train = d["x_train"]
+    x_test = d["x_test"]
+    x_reducido = d["x_reducido"]
+    scaler = d["scaler"]
+
+    modelo = KMeans(**params_kmeans)
 
     labels_train = pd.Series(
         modelo.fit_predict(x_train),
@@ -473,11 +519,7 @@ def main(
         name="cluster_test",
     )
 
-    modelo_reducido = KMeans(
-        n_clusters=P3_N_CLUSTERS,
-        random_state=SEED,
-        n_init=P3_N_INIT,
-    )
+    modelo_reducido = KMeans(**params_kmeans)
 
     labels_reducido = pd.Series(
         modelo_reducido.fit_predict(x_reducido),
@@ -702,36 +744,6 @@ def main(
         model_path,
     )
 
-    metricas_baseline = {
-        "train_silhouette": silhouette_score(
-            x_train,
-            labels_baseline,
-        ),
-        "train_davies_bouldin": davies_bouldin_score(
-            x_train,
-            labels_baseline,
-        ),
-        "train_calinski_harabasz": calinski_harabasz_score(
-            x_train,
-            labels_baseline,
-        ),
-    }
-
-    metricas_candidato = {
-        "train_silhouette": silhouette_score(
-            x_train,
-            labels_candidato,
-        ),
-        "train_davies_bouldin": davies_bouldin_score(
-            x_train,
-            labels_candidato,
-        ),
-        "train_calinski_harabasz": calinski_harabasz_score(
-            x_train,
-            labels_candidato,
-        ),
-    }
-
     metricas = {
         "train_silhouette": silhouette_score(
             x_train,
@@ -785,105 +797,15 @@ def main(
         ),
     }
 
-    manifest = json.loads(
-        MANIFEST_PATH.read_text()
-    )
-    data_version = manifest["data_version"]
-
-    git_commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"],
-        cwd=PROJ_ROOT,
-        text=True,
-    ).strip()
-
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-    mlflow.set_experiment(
-        experiment_name
-    )
-
     with mlflow.start_run(
-        run_name=P3_MLFLOW_BASELINE_RUN_NAME
-    ):
-        mlflow.log_params(
-            {
-                "modelo": "KMeans",
-                "k": P3_BASELINE_K,
-                "random_state": SEED,
-                "n_init": P3_N_INIT,
-                "features": len(P3_MODEL_FEATURES),
-                "data_version": data_version,
-                "max_inactivity_days": P3_MAX_INACTIVITY_DAYS,
-                "min_history_days": P3_MIN_HISTORY_DAYS,
-                "min_duration_seconds": P3_MIN_DURATION_SECONDS,
-                "max_duration_seconds": P3_MAX_DURATION_SECONDS,
-                "train_inicio": P3_TRAIN_START[:10],
-                "train_fin": P3_TRAIN_END[:10],
-                "transformacion_intensidad": "log1p",
-                "scaler": "StandardScaler",
-            }
-        )
-
-        mlflow.log_metrics(metricas_baseline)
-
-        mlflow.set_tags(
-            {
-                "equipo": TEAM_ID,
-                "mlflow.user": TEAM_ID,
-                "problema": "P3",
-                "tipo": "clustering",
-                "etapa": "baseline",
-                "pregunta": P3_QUESTION,
-                "git_commit": git_commit,
-                "data_version": data_version,
-            }
-        )
-
-    with mlflow.start_run(
-        run_name=P3_MLFLOW_CANDIDATE_RUN_NAME
-    ):
-        mlflow.log_params(
-            {
-                "modelo": "AgglomerativeClustering",
-                "k": P3_N_CLUSTERS,
-                "linkage": P3_AGGLO_LINKAGE,
-                "features": len(P3_MODEL_FEATURES),
-                "data_version": data_version,
-                "max_inactivity_days": P3_MAX_INACTIVITY_DAYS,
-                "min_history_days": P3_MIN_HISTORY_DAYS,
-                "min_duration_seconds": P3_MIN_DURATION_SECONDS,
-                "max_duration_seconds": P3_MAX_DURATION_SECONDS,
-                "train_inicio": P3_TRAIN_START[:10],
-                "train_fin": P3_TRAIN_END[:10],
-                "transformacion_intensidad": "log1p",
-                "scaler": "StandardScaler",
-            }
-        )
-
-        mlflow.log_metrics(metricas_candidato)
-
-        mlflow.set_tags(
-            {
-                "equipo": TEAM_ID,
-                "mlflow.user": TEAM_ID,
-                "problema": "P3",
-                "tipo": "clustering",
-                "etapa": "candidato",
-                "pregunta": P3_QUESTION,
-                "git_commit": git_commit,
-                "data_version": data_version,
-            }
-        )
-
-    with mlflow.start_run(
-        run_name=P3_MLFLOW_RUN_NAME
+        run_name=run_name
     ) as run:
         mlflow.log_params(
             {
                 "modelo": "KMeans",
-                "k": P3_N_CLUSTERS,
-                "random_state": SEED,
-                "n_init": P3_N_INIT,
+                "k": params_kmeans["n_clusters"],
+                "random_state": params_kmeans["random_state"],
+                "n_init": params_kmeans["n_init"],
                 "features": len(P3_MODEL_FEATURES),
                 "data_version": data_version,
                 "max_inactivity_days": P3_MAX_INACTIVITY_DAYS,
@@ -902,6 +824,14 @@ def main(
                 ),
                 "transformacion_intensidad": "log1p",
                 "scaler": "StandardScaler",
+            }
+        )
+
+        mlflow.log_params(
+            {
+                k: v
+                for k, v in params_kmeans.items()
+                if k not in ("n_clusters", "n_init", "random_state")
             }
         )
 
@@ -977,6 +907,82 @@ def main(
         f"MLflow run: {run_id}"
     )
 
+    return metricas
+
+
+def ejecutar(
+    model: str = "all",
+    params: dict | None = None,
+    run_name: str | None = None,
+    viajes_path: Path = VIAJES_PARQUET,
+    estaciones_path: Path = ESTACIONES_PARQUET,
+    experiment_name: str = P3_MLFLOW_EXPERIMENT,
+) -> dict:
+    """Entrena y registra en MLflow un modelo de P3 (o todos con model="all")."""
+    params = params or {}
+    if model == "all" and (params or run_name):
+        raise ValueError("params y run_name solo se pueden usar al entrenar un modelo concreto.")
+    nombres = MODELOS if model == "all" else (model,)
+    for nombre in nombres:
+        if nombre not in MODELOS:
+            raise ValueError(
+                f"Modelo de P3 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)} o all."
+            )
+    k_final = {**P3_KMEANS_PARAMS, **params}["n_clusters"] if "kmeans" in nombres else None
+    if k_final is not None and k_final != len(COLORES_PERFIL):
+        raise ValueError(
+            f"El modelo final de P3 nombra {len(COLORES_PERFIL)} perfiles; "
+            f"no se puede entrenar con n_clusters={k_final}."
+        )
+
+    logger.info(f"Iniciando pipeline P3 | modelos={', '.join(nombres)} | params={params}")
+    d = preparar_datos(viajes_path, estaciones_path)
+    data_version = json.loads(MANIFEST_PATH.read_text())["data_version"]
+    git_commit = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=PROJ_ROOT, text=True
+    ).strip()
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(experiment_name)
+
+    resultados = {}
+    for nombre in nombres:
+        if nombre == "baseline":
+            p = {"random_state": SEED, **P3_BASELINE_PARAMS, **params}
+            params_log = {"modelo": "KMeans", "k": p["n_clusters"]}
+            params_log.update({k: v for k, v in p.items() if k != "n_clusters"})
+            resultados[nombre] = correr_comparacion(
+                KMeans(**p), "baseline", params_log,
+                run_name or P3_MLFLOW_BASELINE_RUN_NAME, d, git_commit, data_version,
+            )
+        elif nombre == "agglomerative":
+            p = {**P3_AGGLO_PARAMS, **params}
+            params_log = {"modelo": "AgglomerativeClustering", "k": p["n_clusters"]}
+            params_log.update({k: v for k, v in p.items() if k != "n_clusters"})
+            resultados[nombre] = correr_comparacion(
+                AgglomerativeClustering(**p), "candidato", params_log,
+                run_name or P3_MLFLOW_CANDIDATE_RUN_NAME, d, git_commit, data_version,
+            )
+        else:
+            p = {"random_state": SEED, **P3_KMEANS_PARAMS, **params}
+            resultados[nombre] = correr_kmeans_final(
+                p, run_name or P3_MLFLOW_RUN_NAME, d, git_commit, data_version
+            )
+    return resultados
+
+
+@app.command()
+def main(
+    model: str = typer.Option("all", help="baseline, agglomerative, kmeans o all."),
+    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
+    viajes_path: Path = VIAJES_PARQUET,
+    estaciones_path: Path = ESTACIONES_PARQUET,
+    experiment_name: str = P3_MLFLOW_EXPERIMENT,
+):
+    ejecutar(
+        model, json.loads(params_json), run_name or None,
+        viajes_path, estaciones_path, experiment_name,
+    )
 
 if __name__ == "__main__":
     app()
