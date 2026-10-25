@@ -1,0 +1,9 @@
+# Entorno del MLflow Project. Las dependencias se toman de requirements.txt
+# para no duplicar (ni desincronizar) las versiones fijas.
+python: "3.12.1"
+build_dependencies:
+  - pip==26.2.1
+  - setuptools
+  - wheel
+dependencies:
+  - -r requirements.txt

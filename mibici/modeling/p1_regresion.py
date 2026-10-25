@@ -15,7 +15,9 @@ Pipeline reproducible de extremo a extremo:
 
 Ejecución::
 
-    python -m mibici.modeling.p1_regresion
+    python -m mibici.modeling.p1_regresion                  # todos los modelos
+    python -m mibici.modeling.p1_regresion --model poisson  # un modelo
+    mlflow run . -e train -P question=p1 -P model=hgb       # desde el MLflow Project
 """
 
 import json
@@ -49,7 +51,6 @@ from mibici.config import (
     P1_HGB_PARAMS,
     P1_HORIZONTE_DIAS,
     P1_LAGS_DIAS,
-    P1_LINEAL_ALPHA,
     P1_MAX_DURATION_SECONDS,
     P1_MIN_DURATION_SECONDS,
     P1_MLFLOW_BASELINE_RUN_NAME,
@@ -57,6 +58,7 @@ from mibici.config import (
     P1_MLFLOW_EXPERIMENT,
     P1_MLFLOW_LINEAL_RUN_NAME,
     P1_OUTPUT_DIR,
+    P1_POISSON_PARAMS,
     P1_QUESTION,
     P1_TEST_END,
     P1_TEST_START,
@@ -122,7 +124,7 @@ def cortar(df: pd.DataFrame, inicio: str, fin: str) -> pd.DataFrame:
     return df.loc[(fecha >= pd.Timestamp(inicio)) & (fecha < pd.Timestamp(fin))]
 
 
-def construir_lineal() -> Pipeline:
+def construir_lineal(params: dict) -> Pipeline:
     """Candidato 1: regresión Poisson lineal (enlace log).
 
     Los conteos (rezagos y medias) entran como ``log1p`` para que el modelo sea
@@ -146,14 +148,14 @@ def construir_lineal() -> Pipeline:
                     ]
                 ),
             ),
-            ("modelo", PoissonRegressor(alpha=P1_LINEAL_ALPHA, max_iter=1000)),
+            ("modelo", PoissonRegressor(**params)),
         ]
     )
 
 
-def construir_hgb() -> HistGradientBoostingRegressor:
+def construir_hgb(params: dict) -> HistGradientBoostingRegressor:
     """Candidato 2: gradient boosting con pérdida Poisson (conteos no negativos)."""
-    return HistGradientBoostingRegressor(**P1_HGB_PARAMS, random_state=SEED)
+    return HistGradientBoostingRegressor(**{"random_state": SEED, **params})
 
 
 def evaluar(y: pd.Series, pred: np.ndarray, prefijo: str) -> dict:
@@ -233,7 +235,9 @@ def guardar_importancias(modelo, x_val: pd.DataFrame, y_val: pd.Series, nombre: 
     return [ruta_png, ruta_csv]
 
 
-def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto, base_test) -> dict:
+def entrenar_y_registrar(
+    nombre_run, etapa, modelo, params_modelo, datos, contexto, base_test
+) -> dict:
     """Ajusta en TRAIN, evalúa en TRAIN/VAL/TEST y registra todo en MLflow."""
     (x_train, y_train), (x_val, y_val), (x_test, y_test), test = datos
 
@@ -250,18 +254,6 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto, base_test) 
     ruta_metricas = P1_OUTPUT_DIR / f"{nombre_run}_metricas.json"
     ruta_metricas.write_text(json.dumps(metricas, indent=2))
     artefactos.append(ruta_metricas)
-
-    if isinstance(modelo, BaselineNaiveSemanal):
-        params_modelo = {"modelo": "NaiveEstacional", "lag_dias": P1_BASELINE_LAG_DIAS}
-    elif isinstance(modelo, Pipeline):
-        params_modelo = {
-            "modelo": "PoissonRegressor",
-            "alpha": P1_LINEAL_ALPHA,
-            "transformacion_conteos": "log1p",
-            "escalado": "StandardScaler",
-        }
-    else:
-        params_modelo = {"modelo": "HistGradientBoostingRegressor", **P1_HGB_PARAMS}
 
     with mlflow.start_run(run_name=nombre_run):
         mlflow.set_tags(
@@ -310,9 +302,11 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, datos, contexto, base_test) 
     return metricas
 
 
-@app.command()
-def main(viajes_path: Path = VIAJES_PARQUET, experiment_name: str = P1_MLFLOW_EXPERIMENT):
-    logger.info("Iniciando pipeline P1")
+MODELOS = ("baseline", "poisson", "hgb")
+
+
+def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
+    """Panel diario, features y partición temporal (TRAIN ene-sep, VAL oct, TEST nov-dic)."""
     P1_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     viajes = cargar_viajes(viajes_path)
@@ -357,21 +351,72 @@ def main(viajes_path: Path = VIAJES_PARQUET, experiment_name: str = P1_MLFLOW_EX
             "filas_test": len(test),
         },
     }
+    return datos, base_test, contexto
+
+
+def construir_modelo(nombre: str, params: dict):
+    """Devuelve (modelo, etapa, nombre de run por defecto, parámetros a registrar)."""
+    if nombre == "baseline":
+        if params:
+            raise ValueError("El baseline de P1 no recibe hiperparámetros.")
+        modelo = BaselineNaiveSemanal(f"lag_{P1_BASELINE_LAG_DIAS}")
+        params_log = {"modelo": "NaiveEstacional", "lag_dias": P1_BASELINE_LAG_DIAS}
+        return modelo, "baseline", P1_MLFLOW_BASELINE_RUN_NAME, params_log
+    if nombre == "poisson":
+        p = {**P1_POISSON_PARAMS, **params}
+        params_log = {
+            "modelo": "PoissonRegressor",
+            **p,
+            "transformacion_conteos": "log1p",
+            "escalado": "StandardScaler",
+        }
+        return construir_lineal(p), "candidato", P1_MLFLOW_LINEAL_RUN_NAME, params_log
+    if nombre == "hgb":
+        p = {**P1_HGB_PARAMS, **params}
+        params_log = {"modelo": "HistGradientBoostingRegressor", **p}
+        return construir_hgb(p), "candidato", P1_MLFLOW_CANDIDATE_RUN_NAME, params_log
+    raise ValueError(f"Modelo de P1 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)} o all.")
+
+
+def ejecutar(
+    model: str = "all",
+    params: dict | None = None,
+    run_name: str | None = None,
+    viajes_path: Path = VIAJES_PARQUET,
+    experiment_name: str = P1_MLFLOW_EXPERIMENT,
+) -> dict:
+    """Entrena y registra en MLflow un modelo de P1 (o todos con model="all")."""
+    params = params or {}
+    if model == "all" and (params or run_name):
+        raise ValueError("params y run_name solo se pueden usar al entrenar un modelo concreto.")
+    nombres = MODELOS if model == "all" else (model,)
+    for nombre in nombres:
+        construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+
+    logger.info(f"Iniciando pipeline P1 | modelos={', '.join(nombres)} | params={params}")
+    datos, base_test, contexto = preparar_datos(viajes_path)
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
 
-    entrenar_y_registrar(
-        P1_MLFLOW_BASELINE_RUN_NAME, "baseline",
-        BaselineNaiveSemanal(f"lag_{P1_BASELINE_LAG_DIAS}"), datos, contexto, base_test,
-    )
-    entrenar_y_registrar(
-        P1_MLFLOW_LINEAL_RUN_NAME, "candidato", construir_lineal(), datos, contexto, base_test
-    )
-    entrenar_y_registrar(
-        P1_MLFLOW_CANDIDATE_RUN_NAME, "candidato", construir_hgb(), datos, contexto, base_test
-    )
+    resultados = {}
+    for nombre in nombres:
+        modelo, etapa, run_default, params_log = construir_modelo(nombre, params)
+        resultados[nombre] = entrenar_y_registrar(
+            run_name or run_default, etapa, modelo, params_log, datos, contexto, base_test
+        )
     logger.success("Pipeline P1 terminado")
+    return resultados
 
+
+@app.command()
+def main(
+    model: str = typer.Option("all", help="baseline, poisson, hgb o all."),
+    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
+    viajes_path: Path = VIAJES_PARQUET,
+    experiment_name: str = P1_MLFLOW_EXPERIMENT,
+):
+    ejecutar(model, json.loads(params_json), run_name or None, viajes_path, experiment_name)
 
 if __name__ == "__main__":
     app()

@@ -116,22 +116,26 @@ Los datos crudos, intermedios y procesados no se versionan en Git.
 ## Reproducción completa desde un clon limpio
 
 ```bash
-git clone https://github.com/a01840537/TC5061-Proyecto-Equipo32.git
-cd TC5061-Proyecto-Equipo32
+git clone https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona.git
+cd TC5061-Proyecto-Equipo32-mcardona
 python -m venv .venv
-source .venv/bin/activate          # Windows (PowerShell): .venv\Scripts\Activate.ps1
+source .venv/bin/activate          # Git Bash en Windows: source .venv/Scripts/activate
 python -m pip install -r requirements.txt
 
-python -m mibici.dataset           # 1. ingesta: data/raw -> data/processed + data/manifest.json
-python -m pytest tests             # 2. pruebas de no fuga de información (P1)
-make mlflow-ui                     # 3. servidor de tracking en http://127.0.0.1:5000 (dejar esta terminal abierta)
+make mlflow-ui                     # 1. servidor de tracking en http://127.0.0.1:5000 (dejar esta terminal abierta)
 
 # En otra terminal, con el entorno virtual activado:
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5000   # PowerShell: $env:MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-make train                         # 4. P1, P2 y P3 en el experimento mibici-equipo32
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+mlflow run . -e ingest --env-manager local     # 2. ingesta: data/raw -> data/processed + data/manifest.json
+python -m pytest tests                          # 3. pruebas de no fuga de información (P1)
+
+# 4. modelo de cada pregunta desde el MLflow Project (ver sección "MLflow Project")
+mlflow run . -e train -P question=p1 --experiment-name mibici-equipo32 --env-manager local
+mlflow run . -e train -P question=p2 --experiment-name mibici-equipo32 --env-manager local
+mlflow run . -e train -P question=p3 --experiment-name mibici-equipo32 --env-manager local
 ```
 
-`make train` equivale a ejecutar `python -m mibici.modeling.p1_regresion`,
+Fuera del MLflow Project, `make train` entrena todos los modelos de las tres preguntas; equivale a ejecutar `python -m mibici.modeling.p1_regresion`,
 `python -m mibici.modeling.p2_clasificacion` y `python -m mibici.modeling.p3_clustering`.
 La ingesta debe producir `data_version = 7aa5e436d887`; si el valor cambia, los archivos de MiBici
 descargados no son los mismos que se usaron en los experimentos.
@@ -140,6 +144,60 @@ descargados no son los mismos que se usaron en los experimentos.
 Como ninguna pregunta los necesita, `dataset.py` los elimina antes de escribir los Parquet procesados
 (minimización de datos). Los datos se usan con fines académicos citando la fuente (portal de datos
 abiertos de MiBici) y no se redistribuyen en este repositorio.
+
+## MLflow Project
+
+El archivo `MLproject` de la raíz empaqueta el proyecto para que cualquier integrante lo ejecute
+con un solo comando. El entorno se declara en `python_env.yaml`, que instala las mismas versiones
+fijas de `requirements.txt`.
+
+| Entry point | Comando que ejecuta | Parámetros |
+|---|---|---|
+| `ingest` | `python -m mibici.dataset` | — |
+| `train` | `python -m mibici.modeling.train` | `question` (obligatorio), `model`, `params`, `run_name` |
+
+Parámetros de `train`:
+
+- `question`: `p1`, `p2` o `p3`.
+- `model`: modelo de la pregunta (tabla siguiente). `default` usa `MODELO_DEFAULT` de `config.py`;
+  `all` entrena todos los modelos de la pregunta.
+- `params`: hiperparámetros como `clave=valor` separados por comas, sin espacios
+  (por ejemplo `learning_rate=0.05,max_iter=350`). Solo se indican los que cambian; el resto se toma de
+  `config.py` (`P1_HGB_PARAMS`, `P2_HGB_PARAMS`, `P3_KMEANS_PARAMS`, etc.). Rutas, fechas,
+  particiones y semilla nunca se pasan como parámetro: siempre vienen de `config.py`.
+- `run_name`: nombre del run en MLflow; `auto` usa el definido en `config.py`.
+
+| Pregunta | Modelos (`-P model=`) |
+|---|---|
+| P1 | `baseline` (naive semanal), `poisson`, `hgb` |
+| P2 | `baseline` (regresión logística balanceada), `hgb` |
+| P3 | `baseline` (K-Means k=2), `agglomerative`, `kmeans` (modelo final, k=4) |
+
+Ejemplos (con el servidor de tracking levantado y `MLFLOW_TRACKING_URI` definido):
+
+```bash
+# Ingesta
+mlflow run . -e ingest --env-manager local
+
+# Baseline y modelo por defecto de una pregunta
+mlflow run . -e train -P question=p2 -P model=baseline --experiment-name mibici-equipo32 --env-manager local
+mlflow run . -e train -P question=p2 --experiment-name mibici-equipo32 --env-manager local
+
+# Variación de hiperparámetros
+mlflow run . -e train -P question=p2 -P model=hgb \
+  -P params=learning_rate=0.05,max_iter=350,max_leaf_nodes=63 \
+  -P run_name=p2_hgb_lr005 \
+  --experiment-name mibici-equipo32 --env-manager local
+```
+
+- En Windows (Git Bash o PowerShell) definan `PYTHONUTF8=1` antes de `mlflow run` (`export PYTHONUTF8=1` / `$env:PYTHONUTF8 = "1"`): MLflow imprime emojis en consola y, con la codificación cp1252 de Windows, el run termina con `UnicodeEncodeError`.
+- `--experiment-name mibici-equipo32` es obligatorio: los scripts registran en ese experimento
+  y MLflow rechaza el run si el experimento del proyecto no coincide.
+- `--env-manager local` usa el entorno virtual activo (ya instalado con `requirements.txt`). Sin
+  esa opción, MLflow crea un entorno nuevo a partir de `python_env.yaml`, lo que requiere `pyenv`
+  o `uv`.
+- Cada `mlflow run` crea un run; los parámetros del proyecto (`question`, `model`, `params`)
+  quedan registrados junto con los hiperparámetros efectivos del modelo.
 
 ## P1 — Regresión de viajes diarios por estación
 

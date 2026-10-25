@@ -1,0 +1,24 @@
+name: mibici-equipo32
+
+# Entorno declarado: mismas versiones fijas que requirements.txt.
+python_env: python_env.yaml
+
+entry_points:
+  # Ingesta reproducible: data/raw -> data/processed + data/manifest.json (data_version).
+  ingest:
+    command: "python -m mibici.dataset"
+
+  # Entrena y registra en MLflow un modelo de una pregunta.
+  #   question:    p1 (regresión), p2 (clasificación) o p3 (clustering).
+  #   model:       nombre del modelo de la pregunta; "default" usa MODELO_DEFAULT de config.py.
+  #   params:      hiperparámetros como clave=valor separados por comas (p. ej.
+  #                learning_rate=0.05,max_iter=350); "none" usa solo los de config.py.
+  #                Se evita JSON porque en Windows mlflow run lo pasa por cmd y rompe las comillas.
+  #   run_name:    nombre del run; "auto" usa el definido en config.py.
+  train:
+    parameters:
+      question: string
+      model: {type: string, default: default}
+      params: {type: string, default: none}
+      run_name: {type: string, default: auto}
+    command: "python -m mibici.modeling.train --question {question} --model {model} --params {params} --run-name {run_name}"
