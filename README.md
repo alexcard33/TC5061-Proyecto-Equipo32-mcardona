@@ -124,8 +124,11 @@ python -m pip install -r requirements.txt
 
 python -m mibici.dataset           # 1. ingesta: data/raw -> data/processed + data/manifest.json
 python -m pytest tests             # 2. pruebas de no fuga de información (P1)
-make train                         # 3. P1, P2 y P3 en el experimento mibici-equipo32
-make mlflow-ui                     # 4. http://localhost:5000
+make mlflow-ui                     # 3. servidor de tracking en http://127.0.0.1:5000 (dejar esta terminal abierta)
+
+# En otra terminal, con el entorno virtual activado:
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000   # PowerShell: $env:MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+make train                         # 4. P1, P2 y P3 en el experimento mibici-equipo32
 ```
 
 `make train` equivale a ejecutar `python -m mibici.modeling.p1_regresion`,
@@ -246,13 +249,37 @@ Cada run registra, según corresponda:
 
 El run final registra como artefactos el modelo serializado, la visualización PCA, el mapa interactivo, el resultado geográfico y la tabla resumen de clusters.
 
-La interfaz local de MLflow puede iniciarse desde la raíz del repositorio con:
+#### Servidor de tracking con base de datos
+
+El Model Registry requiere un backend respaldado por base de datos, por lo que todas las corridas
+se registran en un servidor de tracking local con SQLite. La URI del servidor y el nombre del
+experimento están centralizados en `mibici/config.py` (`MLFLOW_TRACKING_URI` y `MLFLOW_EXPERIMENT`);
+la URI toma el valor de la variable de entorno `MLFLOW_TRACKING_URI` y, si no existe,
+usa `http://127.0.0.1:5000`.
+
+1. Levantar el servidor desde la raíz del repositorio (la terminal debe quedar abierta):
 
 ```bash
-mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+make mlflow-ui
+# equivalente:
+mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 ```
 
-y consultarse en `http://localhost:5000`.
+2. En otra terminal, apuntar el cliente al servidor:
+
+```bash
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000          # bash / zsh
+```
+
+```powershell
+$env:MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"       # Windows PowerShell
+```
+
+3. Consultar la interfaz (experimentos y pestaña **Models** del registry) en `http://127.0.0.1:5000`.
+
+- `--backend-store-uri sqlite:///mlflow.db`: metadatos de corridas y Model Registry en `mlflow.db`.
+- `--artifacts-destination ./mlartifacts`: el servidor almacena los artefactos de las corridas nuevas.
+- `mlflow.db`, `mlruns/` y `mlartifacts/` están excluidos en `.gitignore`; no se versionan.
 
 ## Git y control de versiones
 
