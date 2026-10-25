@@ -43,6 +43,7 @@ import typer
 from mibici.config import (
     ESTACIONES_PARQUET,
     MANIFEST_PATH,
+    MLFLOW_TRACKING_URI,
     P1_BASELINE_LAG_DIAS,
     P1_FERIADOS,
     P1_HGB_PARAMS,
@@ -356,7 +357,7 @@ def main(viajes_path: Path = VIAJES_PARQUET, experiment_name: str = P1_MLFLOW_EX
             "filas_test": len(test),
         },
     }
-    mlflow.set_tracking_uri(f"sqlite:///{PROJ_ROOT / 'mlflow.db'}")
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
 
     entrenar_y_registrar(

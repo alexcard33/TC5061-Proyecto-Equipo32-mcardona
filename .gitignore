@@ -220,3 +220,5 @@ reports/p2/
 
 # Resultados generados por P1 (se registran en MLflow, no en Git)
 reports/p1/
+
+files/

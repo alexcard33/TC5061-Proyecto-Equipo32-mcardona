@@ -81,10 +81,10 @@ p3:
 .PHONY: train
 train: p1 p2 p3
 
-## Interfaz de MLflow en http://localhost:5000
+## Servidor de tracking de MLflow (SQLite + Model Registry) en http://127.0.0.1:5000
 .PHONY: mlflow-ui
 mlflow-ui:
-	mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5000
+	mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 
 #################################################################################
 # Self Documenting Commands                                                     #

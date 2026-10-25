@@ -4,6 +4,7 @@ Todas las rutas, fechas, URLs y semillas viven aquí.
 Regla del equipo: ningún otro archivo define estas constantes.
 """
 
+import os
 from pathlib import Path
 
 # ---------- Rutas ----------
@@ -18,6 +19,10 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 
 # ---------- Reproducibilidad ----------
 SEED = 42
+
+# ---------- MLflow ----------
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+MLFLOW_EXPERIMENT = "mibici-equipo32"  # experimento único para P1, P2 y P3
 
 # ---------- Datos: rango elegido por el equipo ----------
 # Enero-diciembre 2025. Las URLs se copian del portal de datos
@@ -62,7 +67,7 @@ P3_MIN_HISTORY_DAYS = 30
 P3_MIN_DURATION_SECONDS = 60
 P3_MAX_DURATION_SECONDS = 86400
 
-P3_MLFLOW_EXPERIMENT = "mibici-equipo32" #usar el mismo nombre de experimiento en todas las preguntas
+P3_MLFLOW_EXPERIMENT = MLFLOW_EXPERIMENT
 P3_MLFLOW_RUN_NAME = "p3_kmeans_final"
 P3_QUESTION = "Agrupar estaciones MiBici según sus patrones de uso y evaluar su estabilidad temporal."
 
@@ -92,7 +97,7 @@ P2_FRACCION_CAPACIDAD = 0.4
 P2_MIN_DURATION_SECONDS = 60
 P2_MAX_DURATION_SECONDS = 86400
 
-P2_MLFLOW_EXPERIMENT = "mibici-equipo32"
+P2_MLFLOW_EXPERIMENT = MLFLOW_EXPERIMENT
 P2_MLFLOW_BASELINE_RUN_NAME = "p2_baseline_logreg"
 P2_MLFLOW_CANDIDATE_RUN_NAME = "p2_candidato_hgb"
 P2_QUESTION = (
@@ -138,7 +143,7 @@ P1_HGB_PARAMS = {
     "early_stopping": False,
 }
 
-P1_MLFLOW_EXPERIMENT = "mibici-equipo32"
+P1_MLFLOW_EXPERIMENT = MLFLOW_EXPERIMENT
 P1_MLFLOW_BASELINE_RUN_NAME = "p1_baseline_naive_semanal"
 P1_MLFLOW_LINEAL_RUN_NAME = "p1_candidato_poisson_lineal"
 P1_MLFLOW_CANDIDATE_RUN_NAME = "p1_candidato_hgb_poisson"
