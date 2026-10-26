@@ -209,7 +209,7 @@ P3_MLFLOW_GMM_RUN_NAME = "p3_candidato_gmm_k4"
 P3_MLFLOW_SEARCH_RUN_NAME = "p3_busqueda_kmeans"
 
 # Modelo que entrena el entry point `train` cuando se usa -P model=default.
-MODELO_DEFAULT = {"p1": "hgb", "p2": "hgb", "p3": "kmeans"}
+MODELO_DEFAULT = {"p1": "poisson", "p2": "hgb", "p3": "kmeans"}
 
 
 # ---------- Model Registry (entry point `register`) ----------
@@ -226,8 +226,8 @@ REGISTRO_MODELOS = {
             "P1 · Demanda: predice cuántos viajes se iniciarán en cada estación MiBici el día "
             "siguiente (regresión a nivel estación-día). Entrada: features de P1_FEATURES."
         ),
-        "champion": None,
-        "challenger": None,
+        "champion": "p1_candidato_poisson_lineal",
+        "challenger": "p1_candidato_hgb_tuneado",
     },
     "p2": {
         "nombre": "mibici-equipo32-p2-riesgo",
@@ -236,8 +236,8 @@ REGISTRO_MODELOS = {
             "bicicletas o sin anclajes en las próximas horas. La decisión se toma sobre "
             "predict_proba con el umbral elegido en validación (tag umbral_decision)."
         ),
-        "champion": None,
-        "challenger": None,
+        "champion": "p2_candidato_hgb_tuneado",
+        "challenger": "p2_candidato_hgb",
     },
     "p3": {
         "nombre": "mibici-equipo32-p3-grupos",
@@ -246,7 +246,7 @@ REGISTRO_MODELOS = {
             "son las features de P3_MODEL_FEATURES con log1p en intensidades y estandarizadas "
             "con el scaler del artefacto model_bundle de la corrida de origen."
         ),
-        "champion": None,
-        "challenger": None,
+        "champion": "p3_kmeans_final",
+        "challenger": "p3_candidato_gmm_k4",
     },
 }
