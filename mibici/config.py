@@ -167,5 +167,86 @@ P3_BASELINE_PARAMS = {"n_clusters": P3_BASELINE_K, "n_init": P3_N_INIT}
 P3_AGGLO_PARAMS = {"n_clusters": P3_N_CLUSTERS, "linkage": P3_AGGLO_LINKAGE}
 P3_KMEANS_PARAMS = {"n_clusters": P3_N_CLUSTERS, "n_init": P3_N_INIT}
 
+# Candidatas nuevas de la Parte B.
+P1_RF_PARAMS = {
+    "n_estimators": 200,
+    "max_depth": 16,
+    "min_samples_leaf": 2,
+    "max_features": 0.5,
+    "n_jobs": -1,
+}
+P2_RF_PARAMS = {
+    "n_estimators": 200,
+    "max_depth": 12,
+    "min_samples_leaf": 20,
+    "class_weight": "balanced_subsample",
+    "max_samples": 0.3,
+    "n_jobs": -1,
+}
+P3_GMM_PARAMS = {"n_components": P3_N_CLUSTERS, "covariance_type": "full", "n_init": 5}
+
+# Búsquedas de hiperparámetros (-P model=search): un run padre y un run hijo por combinación.
+# Criterios: P1 menor val_mae; P2 mayor val_f1 (desempate val_pr_auc);
+# P3 mayor train_silhouette (desempate menor train_davies_bouldin).
+P1_HGB_SEARCH_GRID = {
+    "learning_rate": [0.03, 0.06, 0.1],
+    "max_leaf_nodes": [31, 63],
+    "l2_regularization": [1.0, 2.0],
+}
+P2_HGB_SEARCH_GRID = {
+    "learning_rate": [0.05, 0.1],
+    "max_iter": [200, 350],
+    "max_leaf_nodes": [31, 63],
+}
+P3_KMEANS_SEARCH_GRID = {"n_clusters": [3, 4, 5, 6]}
+
+# Nombres de run de las corridas nuevas.
+P1_MLFLOW_RF_RUN_NAME = "p1_candidato_rf"
+P1_MLFLOW_SEARCH_RUN_NAME = "p1_busqueda_hgb"
+P2_MLFLOW_RF_RUN_NAME = "p2_candidato_rf"
+P2_MLFLOW_SEARCH_RUN_NAME = "p2_busqueda_hgb"
+P3_MLFLOW_GMM_RUN_NAME = "p3_candidato_gmm_k4"
+P3_MLFLOW_SEARCH_RUN_NAME = "p3_busqueda_kmeans"
+
 # Modelo que entrena el entry point `train` cuando se usa -P model=default.
 MODELO_DEFAULT = {"p1": "hgb", "p2": "hgb", "p3": "kmeans"}
+
+
+# ---------- Model Registry (entry point `register`) ----------
+# Esquema de ciclo de vida: aliases. "champion" marca la versión en producción y
+# "challenger" (opcional) la siguiente mejor alternativa. Los valores de champion y
+# challenger son el run_name de la corrida elegida en el experimento; se completan
+# después de comparar las corridas (None = pendiente).
+ALIAS_PRODUCCION = "champion"
+ALIAS_CHALLENGER = "challenger"
+REGISTRO_MODELOS = {
+    "p1": {
+        "nombre": "mibici-equipo32-p1-demanda",
+        "descripcion": (
+            "P1 · Demanda: predice cuántos viajes se iniciarán en cada estación MiBici el día "
+            "siguiente (regresión a nivel estación-día). Entrada: features de P1_FEATURES."
+        ),
+        "champion": None,
+        "challenger": None,
+    },
+    "p2": {
+        "nombre": "mibici-equipo32-p2-riesgo",
+        "descripcion": (
+            "P2 · Riesgo: clasifica si una estación estará en riesgo de quedarse sin "
+            "bicicletas o sin anclajes en las próximas horas. La decisión se toma sobre "
+            "predict_proba con el umbral elegido en validación (tag umbral_decision)."
+        ),
+        "champion": None,
+        "challenger": None,
+    },
+    "p3": {
+        "nombre": "mibici-equipo32-p3-grupos",
+        "descripcion": (
+            "P3 · Grupos: asigna cada estación MiBici a uno de 4 perfiles de uso. La entrada "
+            "son las features de P3_MODEL_FEATURES con log1p en intensidades y estandarizadas "
+            "con el scaler del artefacto model_bundle de la corrida de origen."
+        ),
+        "champion": None,
+        "challenger": None,
+    },
+}
