@@ -127,9 +127,11 @@ make mlflow-ui                     # 1. servidor de tracking en http://127.0.0.1
 # En otra terminal, con el entorno virtual activado:
 export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
 mlflow run . -e ingest --env-manager local     # 2. ingesta: data/raw -> data/processed + data/manifest.json
+git checkout -- data/manifest.json             #    restaura la marca de tiempo (data_version no cambia)
 python -m pytest tests                          # 3. pruebas de no fuga de información (P1)
 
-# 4. modelo de cada pregunta desde el MLflow Project (ver sección "MLflow Project")
+# 4. modelo por defecto de cada pregunta (los comandos de los modelos elegidos están en
+#    "Modelos seleccionados y reproducción")
 mlflow run . -e train -P question=p1 --experiment-name mibici-equipo32 --env-manager local
 mlflow run . -e train -P question=p2 --experiment-name mibici-equipo32 --env-manager local
 mlflow run . -e train -P question=p3 --experiment-name mibici-equipo32 --env-manager local
@@ -270,6 +272,42 @@ mlflow run . -e train -P question=p3 -P model=agglomerative $OPTS
 mlflow run . -e train -P question=p3 -P model=gmm $OPTS
 mlflow run . -e train -P question=p3 -P model=search $OPTS
 ```
+
+## Modelos seleccionados y reproducción
+
+Selección hecha con VALIDATION (P1 y P2) o con métricas de TRAIN y estabilidad (P3); TEST se usó
+solo como evaluación final. El análisis completo está en el reporte de la entrega.
+
+| Pregunta | Champion (producción) | Challenger | Métrica de selección |
+|---|---|---|---|
+| P1 | `p1_candidato_poisson_lineal` (PoissonRegressor, alpha=0.001) | `p1_candidato_hgb_tuneado` | VAL MAE 5.104 (baseline 6.232) |
+| P2 | `p2_candidato_hgb_tuneado` (HGB, lr=0.05, max_iter=350, max_leaf_nodes=63) | `p2_candidato_hgb` | VAL F1 0.468 (baseline 0.415) |
+| P3 | `p3_kmeans_final` (K-Means, k=4, n_init=20) | `p3_candidato_gmm_k4` | TRAIN Davies-Bouldin 1.584 (baseline 1.772) |
+
+Comandos para reproducir desde un clon limpio (después de `mlflow run . -e ingest --env-manager local`):
+
+```bash
+OPTS="--experiment-name mibici-equipo32 --env-manager local"
+
+# P1 · champion
+mlflow run . -e train -P question=p1 -P model=poisson $OPTS
+
+# P2 · champion
+mlflow run . -e train -P question=p2 -P model=hgb \
+  -P params=learning_rate=0.05,max_iter=350,max_leaf_nodes=63 \
+  -P run_name=p2_candidato_hgb_tuneado $OPTS
+
+# P3 · champion
+mlflow run . -e train -P question=p3 -P model=kmeans $OPTS
+
+# Registro de los tres modelos y aliases champion/challenger
+mlflow run . -e register --env-manager local
+```
+
+Nota de reproducibilidad: `mlflow run . -e ingest` reescribe la marca de tiempo `generado` de
+`data/manifest.json` aunque `data_version` no cambie, lo que deja el árbol de Git con cambios.
+Antes de entrenar, restaure el archivo (`git checkout -- data/manifest.json`) para que las
+corridas queden con `git_sucio=False`.
 
 ## Model Registry y ciclo de vida
 
