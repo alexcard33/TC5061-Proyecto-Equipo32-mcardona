@@ -1,5 +1,6 @@
 """P2: clasificación de estaciones MiBici en riesgo de quedarse sin bicis o sin anclajes."""
 
+import itertools
 import json
 from pathlib import Path
 import subprocess
@@ -11,8 +12,9 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import mlflow
+from mlflow.models import infer_signature
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
@@ -35,6 +37,7 @@ from mibici.config import (
     MLFLOW_TRACKING_URI,
     P2_FRACCION_CAPACIDAD,
     P2_HGB_PARAMS,
+    P2_HGB_SEARCH_GRID,
     P2_HORIZONTE_HORAS,
     P2_LOGREG_PARAMS,
     P2_MAX_DURATION_SECONDS,
@@ -42,8 +45,11 @@ from mibici.config import (
     P2_MLFLOW_BASELINE_RUN_NAME,
     P2_MLFLOW_CANDIDATE_RUN_NAME,
     P2_MLFLOW_EXPERIMENT,
+    P2_MLFLOW_RF_RUN_NAME,
+    P2_MLFLOW_SEARCH_RUN_NAME,
     P2_OUTPUT_DIR,
     P2_QUESTION,
+    P2_RF_PARAMS,
     P2_TEST_END,
     P2_TEST_START,
     P2_TRAIN_START,
@@ -62,12 +68,21 @@ from mibici.features import (
     p2_construir_panel,
     p2_historico_pasado,
 )
+from mibici.modeling.mlflow_utils import (
+    registrar_artefactos,
+    registrar_config,
+    registrar_datos,
+    tags_estandar,
+)
 
 app = typer.Typer()
 
 # MLflow 3 guarda los modelos de sklearn con skops y pide marcar como confiable este
 # tipo interno de HistGradientBoosting (el modelo lo entrenamos nosotros).
-SKOPS_TRUSTED = ["sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor"]
+SKOPS_TRUSTED = [
+    "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+    "sklearn.tree._tree.Tree",
+]
 
 
 def obtener_git_commit() -> tuple[str, bool]:
@@ -125,6 +140,11 @@ def construir_candidato(params: dict) -> HistGradientBoostingClassifier:
     return HistGradientBoostingClassifier(**{"random_state": SEED, **params})
 
 
+def construir_rf(params: dict) -> RandomForestClassifier:
+    """Candidato: bosque aleatorio con pesos balanceados por submuestra."""
+    return RandomForestClassifier(**{"random_state": SEED, **params})
+
+
 def elegir_umbral(y_val: pd.Series, prob_val) -> float:
     """Umbral que da el mejor F1 en validación.
 
@@ -178,7 +198,22 @@ def guardar_graficas(nombre: str, y, prob, umbral: float) -> list[Path]:
     return [ruta_cm, ruta_pr, ruta_reporte]
 
 
-def entrenar_y_registrar(nombre_run, etapa, modelo, params_modelo, datos, contexto) -> dict:
+def tags_run(familia: str, etapa: str, contexto: dict) -> dict:
+    """Tags de equipo, commit y versión de datos más los estándar (question, family, stage)."""
+    return {
+        "equipo": TEAM_ID,
+        "mlflow.user": TEAM_ID,
+        "problema": "P2",
+        "tipo": "clasificacion",
+        "pregunta": P2_QUESTION,
+        "git_commit": contexto["git_commit"],
+        "git_sucio": str(contexto["git_sucio"]),
+        "data_version": contexto["data_version"],
+        **tags_estandar("p2", familia, etapa),
+    }
+
+
+def entrenar_y_registrar(nombre_run, etapa, familia, modelo, params_modelo, datos, contexto) -> dict:
     """Entrena, elige el umbral en validación, evalúa los tres conjuntos y sube todo a MLflow."""
     (x_train, y_train, t_train), (x_val, y_val, t_val), (x_test, y_test, t_test) = datos
 
@@ -194,19 +229,7 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, params_modelo, datos, contex
     artefactos = guardar_graficas(nombre_run, y_test, prob_test, umbral)
 
     with mlflow.start_run(run_name=nombre_run):
-        mlflow.set_tags(
-            {
-                "equipo": TEAM_ID,
-                "mlflow.user": TEAM_ID,
-                "problema": "P2",
-                "tipo": "clasificacion",
-                "etapa": etapa,
-                "pregunta": P2_QUESTION,
-                "git_commit": contexto["git_commit"],
-                "git_sucio": str(contexto["git_sucio"]),
-                "data_version": contexto["data_version"],
-            }
-        )
+        mlflow.set_tags(tags_run(familia, etapa, contexto))
         mlflow.log_params(
             {
                 **params_modelo,
@@ -225,14 +248,17 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, params_modelo, datos, contex
             }
         )
         mlflow.log_metrics(metricas)
+        ejemplo = x_test.head(5)
         mlflow.sklearn.log_model(
             modelo,
             name="modelo",
-            input_example=x_test.head(5),
+            signature=infer_signature(ejemplo, modelo.predict(ejemplo)),
+            input_example=ejemplo,
             skops_trusted_types=SKOPS_TRUSTED,
         )
-        for ruta in artefactos:
-            mlflow.log_artifact(str(ruta), artifact_path="evaluacion")
+        registrar_artefactos(artefactos)
+        registrar_config(params_modelo, {"umbral_decision": umbral})
+        registrar_datos(x_train, "p2_train_estacion_hora", VIAJES_PARQUET)
 
     logger.info(
         f"{nombre_run}: test_f1={metricas['test_f1']:.3f} "
@@ -242,7 +268,7 @@ def entrenar_y_registrar(nombre_run, etapa, modelo, params_modelo, datos, contex
     return metricas
 
 
-MODELOS = ("baseline", "hgb")
+MODELOS = ("baseline", "hgb", "rf")
 
 
 def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
@@ -316,16 +342,95 @@ def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
 
 
 def construir_modelo(nombre: str, params: dict):
-    """Devuelve (modelo, etapa, nombre de run por defecto, parámetros a registrar)."""
+    """Devuelve (modelo, etapa, familia, nombre de run por defecto, parámetros a registrar)."""
     if nombre == "baseline":
         p = {**P2_LOGREG_PARAMS, **params}
         params_log = {"modelo": "LogisticRegression", **p}
-        return construir_baseline(p), "baseline", P2_MLFLOW_BASELINE_RUN_NAME, params_log
+        return construir_baseline(p), "baseline", "linear", P2_MLFLOW_BASELINE_RUN_NAME, params_log
     if nombre == "hgb":
         p = {**P2_HGB_PARAMS, **params}
         params_log = {"modelo": "HistGradientBoostingClassifier", **p}
-        return construir_candidato(p), "candidato", P2_MLFLOW_CANDIDATE_RUN_NAME, params_log
-    raise ValueError(f"Modelo de P2 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)} o all.")
+        return (
+            construir_candidato(p), "candidate", "gradient_boosting",
+            P2_MLFLOW_CANDIDATE_RUN_NAME, params_log,
+        )
+    if nombre == "rf":
+        p = {**P2_RF_PARAMS, **params}
+        params_log = {"modelo": "RandomForestClassifier", **p}
+        return construir_rf(p), "candidate", "random_forest", P2_MLFLOW_RF_RUN_NAME, params_log
+    raise ValueError(
+        f"Modelo de P2 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)}, search o all."
+    )
+
+
+def ejecutar_busqueda(run_name, datos, contexto) -> dict:
+    """Búsqueda en malla de HGB: un run padre y un run hijo (nested) por combinación.
+
+    Cada combinación elige su umbral en VAL y se compara por val_f1 (desempate val_pr_auc).
+    TEST no se calcula para no influir en la elección.
+    """
+    (x_train, y_train, t_train), (x_val, y_val, t_val), _ = datos
+    claves = list(P2_HGB_SEARCH_GRID)
+    combinaciones = [
+        dict(zip(claves, valores)) for valores in itertools.product(*P2_HGB_SEARCH_GRID.values())
+    ]
+    resultados = []
+    with mlflow.start_run(run_name=run_name):
+        mlflow.set_tags(tags_run("gradient_boosting", "search", contexto))
+        mlflow.log_params(
+            {
+                "modelo": "HistGradientBoostingClassifier",
+                "criterio": "max val_f1; desempate val_pr_auc",
+                "combinaciones": len(combinaciones),
+                "grid": json.dumps(P2_HGB_SEARCH_GRID),
+                "data_version": contexto["data_version"],
+            }
+        )
+        for i, combo in enumerate(combinaciones, start=1):
+            params = {**P2_HGB_PARAMS, **combo}
+            modelo = construir_candidato(params)
+            modelo.fit(x_train, y_train)
+            prob_val = modelo.predict_proba(x_val)[:, 1]
+            umbral = elegir_umbral(y_val, prob_val)
+            metricas = {
+                **evaluar(y_train, modelo.predict_proba(x_train)[:, 1], umbral, "train", t_train),
+                **evaluar(y_val, prob_val, umbral, "val", t_val),
+            }
+            with mlflow.start_run(run_name=f"{run_name}_{i:02d}", nested=True) as hijo:
+                mlflow.set_tags(tags_run("gradient_boosting", "search", contexto))
+                mlflow.log_params(
+                    {"modelo": "HistGradientBoostingClassifier", **params, "umbral_decision": round(umbral, 4)}
+                )
+                mlflow.log_metrics(metricas)
+            resultados.append({"run_id": hijo.info.run_id, **combo, **metricas})
+            logger.info(
+                f"{run_name}_{i:02d} {combo}: val_f1={metricas['val_f1']:.4f} "
+                f"val_pr_auc={metricas['val_pr_auc']:.4f}"
+            )
+
+        tabla = (
+            pd.DataFrame(resultados)
+            .sort_values(["val_f1", "val_pr_auc"], ascending=False)
+            .reset_index(drop=True)
+        )
+        mejor = tabla.iloc[0]
+        mlflow.log_params({f"mejor_{k}": mejor[k] for k in claves})
+        mlflow.log_metrics({"mejor_val_f1": mejor["val_f1"], "mejor_val_pr_auc": mejor["val_pr_auc"]})
+        mlflow.set_tag("mejor_run_hijo", mejor["run_id"])
+        ruta = P2_OUTPUT_DIR / f"{run_name}_resultados.csv"
+        tabla.to_csv(ruta, index=False)
+        registrar_artefactos([ruta])
+        registrar_config(P2_HGB_PARAMS, {"grid": P2_HGB_SEARCH_GRID})
+        registrar_datos(x_train, "p2_train_estacion_hora", VIAJES_PARQUET)
+
+    params_cli = ",".join(f"{k}={mejor[k]}" for k in claves)
+    logger.success(
+        f"Mejor combinación: {params_cli} (val_f1={mejor['val_f1']:.4f}). Para registrarla "
+        f"como candidata: mlflow run . -e train -P question=p2 -P model=hgb -P params={params_cli} "
+        f"-P run_name=p2_candidato_hgb_tuneado --experiment-name {P2_MLFLOW_EXPERIMENT} "
+        f"--env-manager local"
+    )
+    return {"mejor": mejor.to_dict(), "resultados": tabla}
 
 
 def ejecutar(
@@ -335,13 +440,16 @@ def ejecutar(
     viajes_path: Path = VIAJES_PARQUET,
     experiment_name: str = P2_MLFLOW_EXPERIMENT,
 ) -> dict:
-    """Entrena y registra en MLflow un modelo de P2 (o todos con model="all")."""
+    """Entrena y registra un modelo de P2, la búsqueda (model="search") o todos (model="all")."""
     params = params or {}
     if model == "all" and (params or run_name):
         raise ValueError("params y run_name solo se pueden usar al entrenar un modelo concreto.")
+    if model == "search" and params:
+        raise ValueError("La búsqueda usa P2_HGB_SEARCH_GRID de config.py; no recibe params.")
     nombres = MODELOS if model == "all" else (model,)
     for nombre in nombres:
-        construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+        if nombre != "search":
+            construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
 
     logger.info(f"Iniciando pipeline P2 | modelos={', '.join(nombres)} | params={params}")
     datos, contexto = preparar_datos(viajes_path)
@@ -350,9 +458,14 @@ def ejecutar(
 
     resultados = {}
     for nombre in nombres:
-        modelo, etapa, run_default, params_log = construir_modelo(nombre, params)
+        if nombre == "search":
+            resultados[nombre] = ejecutar_busqueda(
+                run_name or P2_MLFLOW_SEARCH_RUN_NAME, datos, contexto
+            )
+            continue
+        modelo, etapa, familia, run_default, params_log = construir_modelo(nombre, params)
         resultados[nombre] = entrenar_y_registrar(
-            run_name or run_default, etapa, modelo, params_log, datos, contexto
+            run_name or run_default, etapa, familia, modelo, params_log, datos, contexto
         )
     logger.success("Pipeline P2 terminado")
     return resultados
@@ -360,7 +473,7 @@ def ejecutar(
 
 @app.command()
 def main(
-    model: str = typer.Option("all", help="baseline, hgb o all."),
+    model: str = typer.Option("all", help="baseline, hgb, rf, search o all."),
     params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
     run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
     viajes_path: Path = VIAJES_PARQUET,

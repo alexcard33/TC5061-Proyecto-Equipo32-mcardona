@@ -17,9 +17,11 @@ Ejecución::
 
     python -m mibici.modeling.p1_regresion                  # todos los modelos
     python -m mibici.modeling.p1_regresion --model poisson  # un modelo
+    python -m mibici.modeling.p1_regresion --model search   # búsqueda HGB (nested runs)
     mlflow run . -e train -P question=p1 -P model=hgb       # desde el MLflow Project
 """
 
+import itertools
 import json
 from pathlib import Path
 import subprocess
@@ -31,10 +33,11 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import mlflow
+from mlflow.models import infer_signature
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import PoissonRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -49,6 +52,7 @@ from mibici.config import (
     P1_BASELINE_LAG_DIAS,
     P1_FERIADOS,
     P1_HGB_PARAMS,
+    P1_HGB_SEARCH_GRID,
     P1_HORIZONTE_DIAS,
     P1_LAGS_DIAS,
     P1_MAX_DURATION_SECONDS,
@@ -57,9 +61,12 @@ from mibici.config import (
     P1_MLFLOW_CANDIDATE_RUN_NAME,
     P1_MLFLOW_EXPERIMENT,
     P1_MLFLOW_LINEAL_RUN_NAME,
+    P1_MLFLOW_RF_RUN_NAME,
+    P1_MLFLOW_SEARCH_RUN_NAME,
     P1_OUTPUT_DIR,
     P1_POISSON_PARAMS,
     P1_QUESTION,
+    P1_RF_PARAMS,
     P1_TEST_END,
     P1_TEST_START,
     P1_TRAIN_START,
@@ -75,10 +82,19 @@ from mibici.features import (
     p1_agregar_features,
     p1_construir_panel_diario,
 )
+from mibici.modeling.mlflow_utils import (
+    registrar_artefactos,
+    registrar_config,
+    registrar_datos,
+    tags_estandar,
+)
 
 app = typer.Typer()
 
-SKOPS_TRUSTED = ["sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor"]
+SKOPS_TRUSTED = [
+    "sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor",
+    "sklearn.tree._tree.Tree",
+]
 DIAS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 
 
@@ -158,6 +174,11 @@ def construir_hgb(params: dict) -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(**{"random_state": SEED, **params})
 
 
+def construir_rf(params: dict) -> RandomForestRegressor:
+    """Candidato 3: bosque aleatorio (no lineal, sin supuesto de distribución)."""
+    return RandomForestRegressor(**{"random_state": SEED, **params})
+
+
 def evaluar(y: pd.Series, pred: np.ndarray, prefijo: str) -> dict:
     """Métricas de regresión a nivel estación-día y de total diario del sistema."""
     pred = np.clip(pred, 0, None)
@@ -209,9 +230,29 @@ def guardar_graficas(nombre: str, test: pd.DataFrame, pred: np.ndarray, base: np
     fig.savefig(ruta_dia, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
+    muestra = df.sample(min(20_000, len(df)), random_state=SEED)
+    limite = float(max(muestra["viajes"].max(), muestra["pred"].max()))
+    ruta_disp = P1_OUTPUT_DIR / f"{nombre}_real_vs_predicho_test.png"
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.2))
+    ax1.scatter(muestra["viajes"], muestra["pred"], s=4, alpha=0.25, color="#2563eb")
+    ax1.plot([0, limite], [0, limite], color="#1f2937", lw=1, ls="--")
+    ax1.set_xlabel("Viajes reales (estación-día)")
+    ax1.set_ylabel("Viajes predichos")
+    ax1.set_title("P1 · Real vs. predicho (TEST, muestra de 20 mil)")
+    ax1.grid(alpha=0.3)
+    ax2.hist(df["viajes"] - df["pred"], bins=60, color="#2563eb", alpha=0.85)
+    ax2.axvline(0, color="#1f2937", lw=1, ls="--")
+    ax2.set_xlabel("Residuo (real - predicho)")
+    ax2.set_ylabel("Estación-días")
+    ax2.set_title("P1 · Distribución de residuos (TEST)")
+    ax2.grid(alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(ruta_disp, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
     ruta_pred = P1_OUTPUT_DIR / f"{nombre}_predicciones_test.csv"
     df[["viajes", "pred"]].reset_index().to_csv(ruta_pred, index=False)
-    return [ruta_serie, ruta_dia, ruta_pred]
+    return [ruta_serie, ruta_dia, ruta_disp, ruta_pred]
 
 
 def guardar_importancias(modelo, x_val: pd.DataFrame, y_val: pd.Series, nombre: str) -> list[Path]:
@@ -235,8 +276,23 @@ def guardar_importancias(modelo, x_val: pd.DataFrame, y_val: pd.Series, nombre: 
     return [ruta_png, ruta_csv]
 
 
+def tags_run(familia: str, etapa: str, contexto: dict) -> dict:
+    """Tags de equipo, commit y versión de datos más los estándar (question, family, stage)."""
+    return {
+        "equipo": TEAM_ID,
+        "mlflow.user": TEAM_ID,
+        "problema": "P1",
+        "tipo": "regresion",
+        "pregunta": P1_QUESTION,
+        "git_commit": contexto["git_commit"],
+        "git_sucio": str(contexto["git_sucio"]),
+        "data_version": contexto["data_version"],
+        **tags_estandar("p1", familia, etapa),
+    }
+
+
 def entrenar_y_registrar(
-    nombre_run, etapa, modelo, params_modelo, datos, contexto, base_test
+    nombre_run, etapa, familia, modelo, params_modelo, datos, contexto, base_test
 ) -> dict:
     """Ajusta en TRAIN, evalúa en TRAIN/VAL/TEST y registra todo en MLflow."""
     (x_train, y_train), (x_val, y_val), (x_test, y_test), test = datos
@@ -256,20 +312,7 @@ def entrenar_y_registrar(
     artefactos.append(ruta_metricas)
 
     with mlflow.start_run(run_name=nombre_run):
-        mlflow.set_tags(
-            {
-                "equipo": TEAM_ID,
-                "mlflow.user": TEAM_ID,
-                "problema": "P1",
-                "tipo": "regresion",
-                "etapa": etapa,
-                "pregunta": P1_QUESTION,
-                "responsable": "Johanna Camargo",
-                "git_commit": contexto["git_commit"],
-                "git_sucio": str(contexto["git_sucio"]),
-                "data_version": contexto["data_version"],
-            }
-        )
+        mlflow.set_tags(tags_run(familia, etapa, contexto))
         mlflow.log_params(
             {
                 **params_modelo,
@@ -289,11 +332,17 @@ def entrenar_y_registrar(
         )
         mlflow.log_metrics(metricas)
         if not isinstance(modelo, BaselineNaiveSemanal):
+            ejemplo = x_test.head(5)
             mlflow.sklearn.log_model(
-                modelo, name="modelo", input_example=x_test.head(5), skops_trusted_types=SKOPS_TRUSTED
+                modelo,
+                name="modelo",
+                signature=infer_signature(ejemplo, modelo.predict(ejemplo)),
+                input_example=ejemplo,
+                skops_trusted_types=SKOPS_TRUSTED,
             )
-        for ruta in artefactos:
-            mlflow.log_artifact(str(ruta), artifact_path="evaluacion")
+        registrar_artefactos(artefactos)
+        registrar_config(params_modelo)
+        registrar_datos(x_train, "p1_train_estacion_dia", VIAJES_PARQUET)
 
     logger.info(
         f"{nombre_run}: val_mae={metricas['val_mae']:.3f} test_mae={metricas['test_mae']:.3f} "
@@ -302,7 +351,7 @@ def entrenar_y_registrar(
     return metricas
 
 
-MODELOS = ("baseline", "poisson", "hgb")
+MODELOS = ("baseline", "poisson", "hgb", "rf")
 
 
 def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
@@ -355,13 +404,13 @@ def preparar_datos(viajes_path: Path = VIAJES_PARQUET):
 
 
 def construir_modelo(nombre: str, params: dict):
-    """Devuelve (modelo, etapa, nombre de run por defecto, parámetros a registrar)."""
+    """Devuelve (modelo, etapa, familia, nombre de run por defecto, parámetros a registrar)."""
     if nombre == "baseline":
         if params:
             raise ValueError("El baseline de P1 no recibe hiperparámetros.")
         modelo = BaselineNaiveSemanal(f"lag_{P1_BASELINE_LAG_DIAS}")
         params_log = {"modelo": "NaiveEstacional", "lag_dias": P1_BASELINE_LAG_DIAS}
-        return modelo, "baseline", P1_MLFLOW_BASELINE_RUN_NAME, params_log
+        return modelo, "baseline", "naive", P1_MLFLOW_BASELINE_RUN_NAME, params_log
     if nombre == "poisson":
         p = {**P1_POISSON_PARAMS, **params}
         params_log = {
@@ -370,12 +419,76 @@ def construir_modelo(nombre: str, params: dict):
             "transformacion_conteos": "log1p",
             "escalado": "StandardScaler",
         }
-        return construir_lineal(p), "candidato", P1_MLFLOW_LINEAL_RUN_NAME, params_log
+        return construir_lineal(p), "candidate", "glm_poisson", P1_MLFLOW_LINEAL_RUN_NAME, params_log
     if nombre == "hgb":
         p = {**P1_HGB_PARAMS, **params}
         params_log = {"modelo": "HistGradientBoostingRegressor", **p}
-        return construir_hgb(p), "candidato", P1_MLFLOW_CANDIDATE_RUN_NAME, params_log
-    raise ValueError(f"Modelo de P1 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)} o all.")
+        return construir_hgb(p), "candidate", "gradient_boosting", P1_MLFLOW_CANDIDATE_RUN_NAME, params_log
+    if nombre == "rf":
+        p = {**P1_RF_PARAMS, **params}
+        params_log = {"modelo": "RandomForestRegressor", **p}
+        return construir_rf(p), "candidate", "random_forest", P1_MLFLOW_RF_RUN_NAME, params_log
+    raise ValueError(
+        f"Modelo de P1 desconocido: {nombre!r}. Opciones: {', '.join(MODELOS)}, search o all."
+    )
+
+
+def ejecutar_busqueda(run_name, datos, contexto) -> dict:
+    """Búsqueda en malla de HGB: un run padre y un run hijo (nested) por combinación.
+
+    Se selecciona con VAL (menor val_mae); TEST no se calcula para no influir en la elección.
+    """
+    (x_train, y_train), (x_val, y_val), _, _ = datos
+    claves = list(P1_HGB_SEARCH_GRID)
+    combinaciones = [
+        dict(zip(claves, valores)) for valores in itertools.product(*P1_HGB_SEARCH_GRID.values())
+    ]
+    resultados = []
+    with mlflow.start_run(run_name=run_name):
+        mlflow.set_tags(tags_run("gradient_boosting", "search", contexto))
+        mlflow.log_params(
+            {
+                "modelo": "HistGradientBoostingRegressor",
+                "criterio": "min val_mae",
+                "combinaciones": len(combinaciones),
+                "grid": json.dumps(P1_HGB_SEARCH_GRID),
+                "data_version": contexto["data_version"],
+            }
+        )
+        for i, combo in enumerate(combinaciones, start=1):
+            params = {**P1_HGB_PARAMS, **combo}
+            modelo = construir_hgb(params)
+            modelo.fit(x_train, y_train)
+            metricas = {
+                **evaluar(y_train, modelo.predict(x_train), "train"),
+                **evaluar(y_val, modelo.predict(x_val), "val"),
+            }
+            with mlflow.start_run(run_name=f"{run_name}_{i:02d}", nested=True) as hijo:
+                mlflow.set_tags(tags_run("gradient_boosting", "search", contexto))
+                mlflow.log_params({"modelo": "HistGradientBoostingRegressor", **params})
+                mlflow.log_metrics(metricas)
+            resultados.append({"run_id": hijo.info.run_id, **combo, **metricas})
+            logger.info(f"{run_name}_{i:02d} {combo}: val_mae={metricas['val_mae']:.4f}")
+
+        tabla = pd.DataFrame(resultados).sort_values("val_mae").reset_index(drop=True)
+        mejor = tabla.iloc[0]
+        mlflow.log_params({f"mejor_{k}": mejor[k] for k in claves})
+        mlflow.log_metrics({"mejor_val_mae": mejor["val_mae"], "mejor_train_mae": mejor["train_mae"]})
+        mlflow.set_tag("mejor_run_hijo", mejor["run_id"])
+        ruta = P1_OUTPUT_DIR / f"{run_name}_resultados.csv"
+        tabla.to_csv(ruta, index=False)
+        registrar_artefactos([ruta])
+        registrar_config(P1_HGB_PARAMS, {"grid": P1_HGB_SEARCH_GRID})
+        registrar_datos(x_train, "p1_train_estacion_dia", VIAJES_PARQUET)
+
+    params_cli = ",".join(f"{k}={mejor[k]}" for k in claves)
+    logger.success(
+        f"Mejor combinación: {params_cli} (val_mae={mejor['val_mae']:.4f}). Para registrarla "
+        f"como candidata: mlflow run . -e train -P question=p1 -P model=hgb -P params={params_cli} "
+        f"-P run_name=p1_candidato_hgb_tuneado --experiment-name {P1_MLFLOW_EXPERIMENT} "
+        f"--env-manager local"
+    )
+    return {"mejor": mejor.to_dict(), "resultados": tabla}
 
 
 def ejecutar(
@@ -385,13 +498,16 @@ def ejecutar(
     viajes_path: Path = VIAJES_PARQUET,
     experiment_name: str = P1_MLFLOW_EXPERIMENT,
 ) -> dict:
-    """Entrena y registra en MLflow un modelo de P1 (o todos con model="all")."""
+    """Entrena y registra un modelo de P1, la búsqueda (model="search") o todos (model="all")."""
     params = params or {}
     if model == "all" and (params or run_name):
         raise ValueError("params y run_name solo se pueden usar al entrenar un modelo concreto.")
+    if model == "search" and params:
+        raise ValueError("La búsqueda usa P1_HGB_SEARCH_GRID de config.py; no recibe params.")
     nombres = MODELOS if model == "all" else (model,)
     for nombre in nombres:
-        construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+        if nombre != "search":
+            construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
 
     logger.info(f"Iniciando pipeline P1 | modelos={', '.join(nombres)} | params={params}")
     datos, base_test, contexto = preparar_datos(viajes_path)
@@ -400,9 +516,14 @@ def ejecutar(
 
     resultados = {}
     for nombre in nombres:
-        modelo, etapa, run_default, params_log = construir_modelo(nombre, params)
+        if nombre == "search":
+            resultados[nombre] = ejecutar_busqueda(
+                run_name or P1_MLFLOW_SEARCH_RUN_NAME, datos, contexto
+            )
+            continue
+        modelo, etapa, familia, run_default, params_log = construir_modelo(nombre, params)
         resultados[nombre] = entrenar_y_registrar(
-            run_name or run_default, etapa, modelo, params_log, datos, contexto, base_test
+            run_name or run_default, etapa, familia, modelo, params_log, datos, contexto, base_test
         )
     logger.success("Pipeline P1 terminado")
     return resultados
@@ -410,7 +531,7 @@ def ejecutar(
 
 @app.command()
 def main(
-    model: str = typer.Option("all", help="baseline, poisson, hgb o all."),
+    model: str = typer.Option("all", help="baseline, poisson, hgb, rf, search o all."),
     params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
     run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
     viajes_path: Path = VIAJES_PARQUET,

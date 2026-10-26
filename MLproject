@@ -22,3 +22,10 @@ entry_points:
       params: {type: string, default: none}
       run_name: {type: string, default: auto}
     command: "python -m mibici.modeling.train --question {question} --model {model} --params {params} --run-name {run_name}"
+
+  # Registra en el Model Registry el modelo elegido de cada pregunta (REGISTRO_MODELOS de
+  # config.py), copia su linaje y asigna los aliases champion/challenger.
+  register:
+    parameters:
+      question: {type: string, default: all}
+    command: "python -m mibici.modeling.register --question {question}"

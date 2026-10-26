@@ -155,6 +155,7 @@ fijas de `requirements.txt`.
 |---|---|---|
 | `ingest` | `python -m mibici.dataset` | — |
 | `train` | `python -m mibici.modeling.train` | `question` (obligatorio), `model`, `params`, `run_name` |
+| `register` | `python -m mibici.modeling.register` | `question` (`all` por defecto) |
 
 Parámetros de `train`:
 
@@ -169,9 +170,9 @@ Parámetros de `train`:
 
 | Pregunta | Modelos (`-P model=`) |
 |---|---|
-| P1 | `baseline` (naive semanal), `poisson`, `hgb` |
-| P2 | `baseline` (regresión logística balanceada), `hgb` |
-| P3 | `baseline` (K-Means k=2), `agglomerative`, `kmeans` (modelo final, k=4) |
+| P1 | `baseline` (naive semanal), `poisson`, `hgb`, `rf`, `search` |
+| P2 | `baseline` (regresión logística balanceada), `hgb`, `rf`, `search` |
+| P3 | `baseline` (K-Means k=2), `kmeans`, `agglomerative`, `gmm` (k=4), `search` |
 
 Ejemplos (con el servidor de tracking levantado y `MLFLOW_TRACKING_URI` definido):
 
@@ -198,6 +199,113 @@ mlflow run . -e train -P question=p2 -P model=hgb \
   o `uv`.
 - Cada `mlflow run` crea un run; los parámetros del proyecto (`question`, `model`, `params`)
   quedan registrados junto con los hiperparámetros efectivos del modelo.
+
+## Experimentación y artefactos
+
+Todas las corridas se registran en el experimento `mibici-equipo32` con la misma partición
+temporal y las mismas métricas de la entrega anterior, para que la comparación contra el
+baseline sea válida.
+
+**Etiquetas para filtrar en la UI** (además de `equipo`, `git_commit` y `data_version`):
+
+| Tag | Valores |
+|---|---|
+| `question` | `p1`, `p2`, `p3` |
+| `model_family` | `naive`, `glm_poisson`, `gradient_boosting`, `random_forest`, `linear`, `kmeans`, `hierarchical`, `gaussian_mixture` |
+| `stage_of_work` | `baseline`, `search`, `candidate` |
+
+Ejemplo de filtro en la UI: `tags.question = "p2" and tags.stage_of_work = "candidate"`.
+
+**Búsquedas con nested runs** (`-P model=search`): un run padre por búsqueda y un run hijo por
+combinación de la malla definida en `config.py`. El padre registra la mejor combinación
+(`mejor_*`), el run hijo ganador (`mejor_run_hijo`) y la tabla `evaluacion/<busqueda>_resultados.csv`.
+
+| Pregunta | Malla | Criterio (sin usar TEST) |
+|---|---|---|
+| P1 | `P1_HGB_SEARCH_GRID` (HGB) | menor `val_mae` |
+| P2 | `P2_HGB_SEARCH_GRID` (HGB) | mayor `val_f1`; desempate `val_pr_auc` |
+| P3 | `P3_KMEANS_SEARCH_GRID` (k de K-Means) | mayor `train_silhouette`; desempate menor `train_davies_bouldin` |
+
+**Artefactos de cada corrida candidata:**
+
+```
+modelo/        modelo con firma (signature) e input_example (mlflow.sklearn.log_model)
+plots/         P1: real vs. predicho y residuos, serie diaria, MAE por día
+               P2: matriz de confusión y curva precisión-recall
+               P3: PCA por perfil y mapa de grupos
+evaluacion/    métricas, predicciones, reportes y tablas de perfiles
+data/          manifest.json de la ingesta (data_version)
+config/        params_efectivos.json, config.py, MLproject, python_env.yaml, requirements.txt
+```
+
+El dataset de entrenamiento se registra con `mlflow.log_input` (solo esquema, número de filas y
+digest). Los artefactos no contienen datos personales: la ingesta elimina el pseudónimo, el género
+y el año de nacimiento de los usuarios.
+
+**Plan de corridas** (servidor levantado, `MLFLOW_TRACKING_URI` y `PYTHONUTF8=1` definidos):
+
+```bash
+OPTS="--experiment-name mibici-equipo32 --env-manager local"
+
+# P1: baseline, 3 candidatas, búsqueda y candidata ajustada con la mejor combinación
+mlflow run . -e train -P question=p1 -P model=baseline $OPTS
+mlflow run . -e train -P question=p1 -P model=poisson $OPTS
+mlflow run . -e train -P question=p1 -P model=hgb $OPTS
+mlflow run . -e train -P question=p1 -P model=rf $OPTS
+mlflow run . -e train -P question=p1 -P model=search $OPTS
+# el log de la búsqueda imprime el comando con la mejor combinación, por ejemplo:
+# mlflow run . -e train -P question=p1 -P model=hgb -P params=<mejor> -P run_name=p1_candidato_hgb_tuneado $OPTS
+
+# P2
+mlflow run . -e train -P question=p2 -P model=baseline $OPTS
+mlflow run . -e train -P question=p2 -P model=hgb $OPTS
+mlflow run . -e train -P question=p2 -P model=rf $OPTS
+mlflow run . -e train -P question=p2 -P model=search $OPTS
+# mlflow run . -e train -P question=p2 -P model=hgb -P params=<mejor> -P run_name=p2_candidato_hgb_tuneado $OPTS
+
+# P3
+mlflow run . -e train -P question=p3 -P model=baseline $OPTS
+mlflow run . -e train -P question=p3 -P model=kmeans $OPTS
+mlflow run . -e train -P question=p3 -P model=agglomerative $OPTS
+mlflow run . -e train -P question=p3 -P model=gmm $OPTS
+mlflow run . -e train -P question=p3 -P model=search $OPTS
+```
+
+## Model Registry y ciclo de vida
+
+Cada pregunta tiene un registered model con nombre fijo y descripción:
+
+| Pregunta | Registered model |
+|---|---|
+| P1 | `mibici-equipo32-p1-demanda` |
+| P2 | `mibici-equipo32-p2-riesgo` |
+| P3 | `mibici-equipo32-p3-grupos` |
+
+**Esquema: aliases.** La versión en producción lleva el alias `champion` y, opcionalmente, la
+siguiente mejor alternativa lleva `challenger`. Se eligió este esquema en lugar de las etapas
+clásicas (Staging/Production) porque las etapas están obsoletas desde MLflow 2.9, mientras que
+los aliases son el mecanismo vigente: el consumidor carga siempre `models:/<nombre>@champion` y
+promover o revertir un modelo consiste en mover el alias a otra versión, sin cambiar código ni
+borrar versiones. Cada versión conserva su propio linaje.
+
+**Linaje de cada versión** (tags de la versión): `source_run_id`, `source_run_name`,
+`source_experiment`, `git_commit`, `git_sucio`, `data_version`, `question`, `model_family`,
+`stage_of_work` y, en P2, `umbral_decision`.
+
+**Registro:** el modelo elegido de cada pregunta se define en `REGISTRO_MODELOS` de `config.py`
+(run_name del champion y del challenger) y se registra con:
+
+```bash
+mlflow run . -e register --env-manager local
+```
+
+El comando es idempotente (si la corrida ya tiene versión, la reutiliza), copia el linaje,
+asigna los aliases y verifica la carga del modelo en producción:
+
+```python
+import mlflow
+modelo = mlflow.pyfunc.load_model("models:/mibici-equipo32-p1-demanda@champion")
+```
 
 ## P1 — Regresión de viajes diarios por estación
 

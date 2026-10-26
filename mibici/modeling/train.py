@@ -11,9 +11,9 @@ Ejemplos (con el servidor de tracking levantado y MLFLOW_TRACKING_URI definido):
 
 Modelos disponibles:
 
-    p1: baseline (naive semanal), poisson, hgb
-    p2: baseline (regresión logística), hgb
-    p3: baseline (K-Means k=2), agglomerative, kmeans (modelo final)
+    p1: baseline (naive semanal), poisson, hgb, rf, search (malla HGB con nested runs)
+    p2: baseline (regresión logística), hgb, rf, search (malla HGB con nested runs)
+    p3: baseline (K-Means k=2), kmeans, agglomerative, gmm, search (k de K-Means con nested runs)
 
 Los hiperparámetros por defecto viven en config.py; `params` solo indica los que cambian, como
 pares clave=valor separados por comas. Los valores se interpretan como JSON cuando es posible
