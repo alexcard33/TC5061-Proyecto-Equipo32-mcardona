@@ -15,6 +15,9 @@ la ingesta elimina el pseudónimo, el género y el año de nacimiento.
 
 import json
 from pathlib import Path
+import shutil
+# bandit B404/B603: solo se ejecuta git (ruta absoluta) con argumentos fijos.
+import subprocess  # nosec B404
 
 import mlflow
 import mlflow.data
@@ -23,6 +26,27 @@ import pandas as pd
 from mibici.config import MANIFEST_PATH, PROJ_ROOT
 
 ETAPAS = ("baseline", "search", "candidate")
+def obtener_git_commit() -> tuple[str, bool]:
+    """Commit actual y si hay cambios sin commitear (tags ``git_commit`` y ``git_sucio``).
+
+    Seguridad (bandit B603/B607): se usa la ruta absoluta del ejecutable de git
+    (``shutil.which``), sin ``shell=True`` y con argumentos fijos; ningún dato externo
+    llega al comando.
+    """
+    git = shutil.which("git")
+    if git is None:
+        return "desconocido", True
+    try:
+        comando_commit = [git, "rev-parse", "HEAD"]
+        comando_estado = [git, "status", "--porcelain"]
+        commit = subprocess.check_output(comando_commit, cwd=PROJ_ROOT, text=True)  # nosec B603
+        estado = subprocess.check_output(comando_estado, cwd=PROJ_ROOT, text=True)  # nosec B603
+        commit, estado = commit.strip(), estado.strip()
+    except (subprocess.CalledProcessError, OSError):
+        return "desconocido", True
+    return commit, bool(estado)
+
+
 ARCHIVOS_CONFIG = ("mibici/config.py", "MLproject", "python_env.yaml", "requirements.txt")
 CARPETA_POR_EXTENSION = {".png": "plots", ".html": "plots"}
 

@@ -10,7 +10,7 @@ pandas==3.0.6
 numpy==2.5.4
 pyarrow==25.0.1
 scikit-learn==1.9.1
-mlflow==3.17.1
+mlflow==3.17.2
 matplotlib==3.11.2
 requests==2.34.2
 folium==0.20.0
@@ -18,6 +18,10 @@ joblib==1.6.0
 
 # Pruebas y notebook de exploración
 pytest==9.1.1
+
+# Seguridad: análisis estático del código y auditoría de dependencias
+bandit==1.9.4
+pip-audit==2.10.1
 ipykernel==7.4.0
 
 -e .

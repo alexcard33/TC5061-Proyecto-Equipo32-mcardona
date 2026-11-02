@@ -24,7 +24,6 @@ Ejecución::
 import itertools
 import json
 from pathlib import Path
-import subprocess
 
 from loguru import logger
 import matplotlib
@@ -72,7 +71,6 @@ from mibici.config import (
     P1_TRAIN_START,
     P1_VAL_START,
     P1_VENTANAS_MEDIA_DIAS,
-    PROJ_ROOT,
     SEED,
     TEAM_ID,
     VIAJES_PARQUET,
@@ -83,6 +81,7 @@ from mibici.features import (
     p1_construir_panel_diario,
 )
 from mibici.modeling.mlflow_utils import (
+    obtener_git_commit,
     registrar_artefactos,
     registrar_config,
     registrar_datos,
@@ -110,15 +109,6 @@ class BaselineNaiveSemanal:
     def predict(self, x):
         return x[self.columna].to_numpy(dtype="float64")
 
-
-def obtener_git_commit() -> tuple[str, bool]:
-    """Devuelve el commit actual y si hay cambios sin confirmar."""
-    try:
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=PROJ_ROOT, text=True).strip()
-        estado = subprocess.check_output(["git", "status", "--porcelain"], cwd=PROJ_ROOT, text=True).strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return "desconocido", True
-    return commit, bool(estado)
 
 
 def cargar_viajes(ruta: Path) -> pd.DataFrame:

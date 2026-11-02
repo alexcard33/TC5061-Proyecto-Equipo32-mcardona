@@ -20,6 +20,18 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 # ---------- Reproducibilidad ----------
 SEED = 42
 
+# ---------- Variables de entorno ----------
+# Configuración sensible o propia de cada máquina (URI del servidor de MLflow,
+# credenciales) se lee de variables de entorno o de un archivo .env local, que está
+# en .gitignore. Plantilla: .env.example. python-dotenv no es obligatorio (el
+# entorno de validación no lo instala).
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(PROJ_ROOT / ".env")
+except ImportError:  # pragma: no cover
+    pass
+
 # ---------- MLflow ----------
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 MLFLOW_EXPERIMENT = "mibici-equipo32"  # experimento único para P1, P2 y P3

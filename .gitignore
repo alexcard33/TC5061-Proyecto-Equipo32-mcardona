@@ -226,3 +226,11 @@ files/
 # Entorno de validación con DeepChecks y sus reportes HTML (pesados, se regeneran)
 .venv-validacion/
 reports/deepchecks/*.html
+
+# Credenciales y secretos: nunca se versionan (plantilla en .env.example)
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials*.json
