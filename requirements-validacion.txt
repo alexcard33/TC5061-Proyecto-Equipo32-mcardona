@@ -1,0 +1,24 @@
+# Entorno aislado para la validación de datos con DeepChecks (paso 2 de la Actividad 7).
+#
+# DeepChecks 0.19.1 (última versión) no es compatible con numpy 2, pandas 3 ni
+# scikit-learn 1.9, que usa el entorno principal (requirements.txt). Para no degradar
+# el entorno de entrenamiento, la validación corre en su propio entorno:
+#
+#   python -m venv .venv-validacion
+#   .venv-validacion\Scripts\activate        (Git Bash: source .venv-validacion/Scripts/activate)
+#   python -m pip install -r requirements-validacion.txt
+#   python -m mibici.validacion_datos
+#   python -m pytest tests/test_validacion_datos.py
+
+deepchecks==0.19.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+pyarrow==21.0.0
+plotly==5.24.1
+setuptools<81  # deepchecks importa pkg_resources
+loguru==0.7.3
+typer==0.27.3
+pytest==9.1.1
+
+-e .

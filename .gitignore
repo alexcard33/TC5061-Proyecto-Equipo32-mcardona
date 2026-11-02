@@ -222,3 +222,7 @@ reports/p2/
 reports/p1/
 
 files/
+
+# Entorno de validación con DeepChecks y sus reportes HTML (pesados, se regeneran)
+.venv-validacion/
+reports/deepchecks/*.html

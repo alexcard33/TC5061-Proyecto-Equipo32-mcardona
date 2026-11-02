@@ -1,0 +1,1010 @@
+{
+  "chequeos": [
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Single Value in Column",
+      "clase": "IsSingleValue",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Special Characters",
+      "clase": "SpecialCharacters",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Nulls",
+      "clase": "MixedNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Data Types",
+      "clase": "MixedDataTypes",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "String Mismatch",
+      "clase": "StringMismatch",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Data Duplicates",
+      "clase": "DataDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "String Length Out Of Bounds",
+      "clase": "StringLengthOutOfBounds",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Feature-Feature Correlation",
+      "clase": "FeatureFeatureCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "PercentOfNulls",
+      "clase": "PercentOfNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Outlier Sample Detection",
+      "clase": "OutlierSampleDetection",
+      "estado": "sin_condicion",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Conflicting Labels - Train Dataset",
+      "clase": "ConflictingLabels",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": true
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Feature Label Correlation - Train Dataset",
+      "clase": "FeatureLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "viajes",
+      "suite": "data_integrity",
+      "chequeo": "Identifier Label Correlation - Train Dataset",
+      "clase": "IdentifierLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Single Value in Column",
+      "clase": "IsSingleValue",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Special Characters",
+      "clase": "SpecialCharacters",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Nulls",
+      "clase": "MixedNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Data Types",
+      "clase": "MixedDataTypes",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "String Mismatch",
+      "clase": "StringMismatch",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Data Duplicates",
+      "clase": "DataDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "String Length Out Of Bounds",
+      "clase": "StringLengthOutOfBounds",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Feature-Feature Correlation",
+      "clase": "FeatureFeatureCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "PercentOfNulls",
+      "clase": "PercentOfNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Outlier Sample Detection",
+      "clase": "OutlierSampleDetection",
+      "estado": "sin_condicion",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Conflicting Labels - Train Dataset",
+      "clase": "ConflictingLabels",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": true
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Feature Label Correlation - Train Dataset",
+      "clase": "FeatureLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "estaciones",
+      "suite": "data_integrity",
+      "chequeo": "Identifier Label Correlation - Train Dataset",
+      "clase": "IdentifierLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Feature-Feature Correlation",
+      "clase": "FeatureFeatureCorrelation",
+      "estado": "falla",
+      "detalle": "Not more than 0 pairs are correlated above 0.9: Correlation is greater than 0.9 for pairs [('lag_1', 'media_7d'), ('lag_1', 'media_28d'), ('lag_2', 'media_7d'), ('lag_2', 'media_28d'), ('lag_7', 'media_7d'), ('lag_7', 'media_28d'), ('lag_7', 'media_mismo_dia_4sem'), ('lag_14', 'lag_7'), ('lag_14', 'media_7d'), ('lag_14', 'media_28d'), ('lag_14', 'media_mismo_dia_4sem'), ('media_7d', 'media_mismo_dia_4sem'), ('media_28d', 'media_7d'), ('media_28d', 'media_mismo_dia_4sem')]",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Single Value in Column",
+      "clase": "IsSingleValue",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Special Characters",
+      "clase": "SpecialCharacters",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Nulls",
+      "clase": "MixedNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Data Types",
+      "clase": "MixedDataTypes",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "String Mismatch",
+      "clase": "StringMismatch",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Data Duplicates",
+      "clase": "DataDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "String Length Out Of Bounds",
+      "clase": "StringLengthOutOfBounds",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Feature Label Correlation",
+      "clase": "FeatureLabelCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Identifier Label Correlation",
+      "clase": "IdentifierLabelCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "PercentOfNulls",
+      "clase": "PercentOfNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Outlier Sample Detection",
+      "clase": "OutlierSampleDetection",
+      "estado": "sin_condicion",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "data_integrity",
+      "chequeo": "Conflicting Labels - Train Dataset",
+      "clase": "ConflictingLabels",
+      "estado": "no_aplica",
+      "detalle": "Check is irrelevant for regression tasks",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Drift",
+      "clase": "FeatureDrift",
+      "estado": "falla",
+      "detalle": "categorical drift score < 0.2 and numerical drift score < 0.2: Failed for 1 out of 12 columns.\nFound 1 numeric columns with Kolmogorov-Smirnov above threshold: {'dias_activa': '0.99'}",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Multivariate Drift",
+      "clase": "MultivariateDrift",
+      "estado": "falla",
+      "detalle": "Drift value is less than 0.25: Found drift value of: 1, corresponding to a domain classifier AUC of: 1",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Datasets Size Comparison",
+      "clase": "DatasetsSizeComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "New Category Train Test",
+      "clase": "NewCategoryTrainTest",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "String Mismatch Comparison",
+      "clase": "StringMismatchComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train-Test Leakage (duplicates)",
+      "clase": "DateTrainTestLeakageDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train-Test Leakage (overlap)",
+      "clase": "DateTrainTestLeakageOverlap",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Train Test Samples Mix",
+      "clase": "TrainTestSamplesMix",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Label Correlation Change",
+      "clase": "FeatureLabelCorrelationChange",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Label Drift",
+      "clase": "LabelDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "New Label Train Test",
+      "clase": "NewLabelTrainTest",
+      "estado": "no_aplica",
+      "detalle": "Check is irrelevant for regression tasks",
+      "critico": false
+    },
+    {
+      "conjunto": "p1",
+      "suite": "train_test_validation",
+      "chequeo": "Index Train Test Leakage",
+      "clase": "IndexTrainTestLeakage",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain an index",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Feature-Feature Correlation",
+      "clase": "FeatureFeatureCorrelation",
+      "estado": "falla",
+      "detalle": "Not more than 0 pairs are correlated above 0.9: Correlation is greater than 0.9 for pairs [('neto_3h', 'neto_3h_rel')]",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Single Value in Column",
+      "clase": "IsSingleValue",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Special Characters",
+      "clase": "SpecialCharacters",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Nulls",
+      "clase": "MixedNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Data Types",
+      "clase": "MixedDataTypes",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "String Mismatch",
+      "clase": "StringMismatch",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Data Duplicates",
+      "clase": "DataDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "String Length Out Of Bounds",
+      "clase": "StringLengthOutOfBounds",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Conflicting Labels",
+      "clase": "ConflictingLabels",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Feature Label Correlation",
+      "clase": "FeatureLabelCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Identifier Label Correlation",
+      "clase": "IdentifierLabelCorrelation",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "PercentOfNulls",
+      "clase": "PercentOfNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "data_integrity",
+      "chequeo": "Outlier Sample Detection",
+      "clase": "OutlierSampleDetection",
+      "estado": "sin_condicion",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Train Test Samples Mix",
+      "clase": "TrainTestSamplesMix",
+      "estado": "falla",
+      "detalle": "Percentage of test data samples that appear in train data is less or equal to 5%: Percent of test data samples that appear in train data: 11.79%",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Datasets Size Comparison",
+      "clase": "DatasetsSizeComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "New Label Train Test",
+      "clase": "NewLabelTrainTest",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "New Category Train Test",
+      "clase": "NewCategoryTrainTest",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "String Mismatch Comparison",
+      "clase": "StringMismatchComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train-Test Leakage (duplicates)",
+      "clase": "DateTrainTestLeakageDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train-Test Leakage (overlap)",
+      "clase": "DateTrainTestLeakageOverlap",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Label Correlation Change",
+      "clase": "FeatureLabelCorrelationChange",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Drift",
+      "clase": "FeatureDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Label Drift",
+      "clase": "LabelDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Multivariate Drift",
+      "clase": "MultivariateDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p2",
+      "suite": "train_test_validation",
+      "chequeo": "Index Train Test Leakage",
+      "clase": "IndexTrainTestLeakage",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain an index",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Feature-Feature Correlation",
+      "clase": "FeatureFeatureCorrelation",
+      "estado": "falla",
+      "detalle": "Not more than 0 pairs are correlated above 0.9: Correlation is greater than 0.9 for pairs [('llegadas_dia', 'salidas_dia')]",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Single Value in Column",
+      "clase": "IsSingleValue",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Special Characters",
+      "clase": "SpecialCharacters",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Nulls",
+      "clase": "MixedNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Mixed Data Types",
+      "clase": "MixedDataTypes",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "String Mismatch",
+      "clase": "StringMismatch",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Data Duplicates",
+      "clase": "DataDuplicates",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "String Length Out Of Bounds",
+      "clase": "StringLengthOutOfBounds",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "PercentOfNulls",
+      "clase": "PercentOfNulls",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Outlier Sample Detection",
+      "clase": "OutlierSampleDetection",
+      "estado": "sin_condicion",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Conflicting Labels - Train Dataset",
+      "clase": "ConflictingLabels",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Feature Label Correlation - Train Dataset",
+      "clase": "FeatureLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "data_integrity",
+      "chequeo": "Identifier Label Correlation - Train Dataset",
+      "clase": "IdentifierLabelCorrelation",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Datasets Size Comparison",
+      "clase": "DatasetsSizeComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "New Category Train Test",
+      "clase": "NewCategoryTrainTest",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "String Mismatch Comparison",
+      "clase": "StringMismatchComparison",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Train Test Samples Mix",
+      "clase": "TrainTestSamplesMix",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Drift",
+      "clase": "FeatureDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Multivariate Drift",
+      "clase": "MultivariateDrift",
+      "estado": "pasa",
+      "detalle": "",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "New Label Train Test",
+      "clase": "NewLabelTrainTest",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train Test Leakage Duplicates",
+      "clase": "DateTrainTestLeakageDuplicates",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a datetime",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Date Train Test Leakage Overlap",
+      "clase": "DateTrainTestLeakageOverlap",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a datetime",
+      "critico": true
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Index Train Test Leakage",
+      "clase": "IndexTrainTestLeakage",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain an index",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Feature Label Correlation Change",
+      "clase": "FeatureLabelCorrelationChange",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    },
+    {
+      "conjunto": "p3",
+      "suite": "train_test_validation",
+      "chequeo": "Label Drift",
+      "clase": "LabelDrift",
+      "estado": "no_aplica",
+      "detalle": "Dataset does not contain a label column",
+      "critico": false
+    }
+  ],
+  "dominio": [
+    {
+      "conjunto": "viajes",
+      "chequeo": "filas",
+      "valor": 4532032.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "valores nulos",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "viaje_id duplicado",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "viajes duplicados (mismos datos, distinto id)",
+      "valor": 1076.0,
+      "pasa": false,
+      "detalle": "Mismo origen, destino, inicio y fin al segundo; representan < 0.1 % del total."
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "duración negativa",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "duración < 60 s",
+      "valor": 117226.0,
+      "pasa": true,
+      "detalle": "Desanclajes fallidos: los pipelines de P1-P3 los descartan."
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "duración > 24 h",
+      "valor": 6.0,
+      "pasa": true,
+      "detalle": "Bicicletas no ancladas: los pipelines de P1-P3 los descartan."
+    },
+    {
+      "conjunto": "viajes",
+      "chequeo": "estaciones fuera del catálogo",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "estaciones",
+      "chequeo": "id duplicado",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "estaciones",
+      "chequeo": "valores nulos",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "estaciones",
+      "chequeo": "coordenadas fuera de Guadalajara",
+      "valor": 0.0,
+      "pasa": true,
+      "detalle": ""
+    },
+    {
+      "conjunto": "estaciones",
+      "chequeo": "capacidad <= 0",
+      "valor": 4.0,
+      "pasa": true,
+      "detalle": "P2 las excluye (no se puede calcular el umbral de riesgo). ids: 99, 109, 116, 138"
+    }
+  ],
+  "reportes": [
+    "viajes_integridad.html",
+    "estaciones_integridad.html",
+    "p1_integridad.html",
+    "p1_train_test.html",
+    "p2_integridad.html",
+    "p2_train_test.html",
+    "p3_integridad.html",
+    "p3_train_test.html"
+  ],
+  "fallas_criticas": []
+}
