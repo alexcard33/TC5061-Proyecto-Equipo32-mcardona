@@ -3,7 +3,6 @@
 import itertools
 import json
 from pathlib import Path
-import subprocess
 
 import folium
 from folium.plugins import Fullscreen
@@ -63,7 +62,6 @@ from mibici.config import (
     P3_TEST_START,
     P3_TRAIN_END,
     P3_TRAIN_START,
-    PROJ_ROOT,
     SEED,
     TEAM_ID,
     VIAJES_PARQUET,
@@ -75,6 +73,7 @@ from mibici.features import (
     p3_filtrar_viajes,
 )
 from mibici.modeling.mlflow_utils import (
+    obtener_git_commit,
     registrar_artefactos,
     registrar_config,
     registrar_datos,
@@ -1065,9 +1064,7 @@ def ejecutar(
     logger.info(f"Iniciando pipeline P3 | modelos={', '.join(nombres)} | params={params}")
     d = preparar_datos(viajes_path, estaciones_path)
     data_version = json.loads(MANIFEST_PATH.read_text())["data_version"]
-    git_commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=PROJ_ROOT, text=True
-    ).strip()
+    git_commit, _ = obtener_git_commit()
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(experiment_name)
 

@@ -1,0 +1,9 @@
+Name       Version ID                  Fix Versions
+---------- ------- ------------------- ------------
+]8;;https://pypi.org/project/setuptools/\setuptools]8;;\ 80.10.2 ]8;;https://osv.dev/vulnerability/PYSEC-2026-3447\PYSEC-2026-3447]8;;\     83.0.0
+]8;;https://pypi.org/project/setuptools/\setuptools]8;;\ 80.10.2 ]8;;https://osv.dev/vulnerability/PYSEC-2026-3447\PYSEC-2026-3447]8;;\     83.0.0
+]8;;https://pypi.org/project/setuptools/\setuptools]8;;\ 80.10.2 ]8;;https://osv.dev/vulnerability/GHSA-xmj3-9gf7-h52w\GHSA-xmj3-9gf7-h52w]8;;\ 84.1.0
+
+Name   Skip Reason
+------ ---------------------------------------------------------------------
+mibici Dependency not found on PyPI and could not be audited: mibici (0.0.1)
