@@ -22,6 +22,7 @@ Entrega de la semana 5 con datos de MiBici
 ## Project Organization
 
 ```
+├── .env.example       <- Plantilla de variables de entorno (sin valores; copiar a .env)
 ├── LICENSE            <- Open-source license if one is chosen
 ├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
 ├── README.md          <- The top-level README for developers using this project.
@@ -32,6 +33,7 @@ Entrega de la semana 5 con datos de MiBici
 │   └── raw            <- The original, immutable data dump.
 │
 ├── docs               <- A default mkdocs project; see www.mkdocs.org for details
+│   └── capturas       <- Evidencia de ejecución de pruebas y chequeos
 │
 ├── models             <- Trained and serialized models, model predictions, or model summaries
 │
@@ -45,10 +47,16 @@ Entrega de la semana 5 con datos de MiBici
 ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
 │
 ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
+│   ├── deepchecks     <- Resumen de la validación de datos (los HTML se regeneran)
+│   ├── security       <- Salidas de bandit y pip-audit y SEGURIDAD.md
 │   └── figures        <- Generated graphics and figures to be used in reporting
 │
 ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
 │                         generated with `pip freeze > requirements.txt`
+│
+├── requirements-validacion.txt <- Entorno aislado (Python 3.12) para DeepChecks
+│
+├── tests              <- Pruebas de PyTest: unitarias, reproducibilidad, seguridad y DeepChecks
 │
 ├── setup.cfg          <- Configuration file for flake8
 │
@@ -61,6 +69,8 @@ Entrega de la semana 5 con datos de MiBici
     ├── dataset.py              <- Scripts to download or generate data
     │
     ├── features.py             <- Code to create features for modeling
+    │
+    ├── validacion_datos.py     <- Validación de calidad e integridad de datos con DeepChecks
     │
     ├── modeling                
     │   ├── __init__.py 
@@ -484,6 +494,124 @@ $env:MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"       # Windows PowerShell
 - `--backend-store-uri sqlite:///mlflow.db`: metadatos de corridas y Model Registry en `mlflow.db`.
 - `--artifacts-destination ./mlartifacts`: el servidor almacena los artefactos de las corridas nuevas.
 - `mlflow.db`, `mlruns/` y `mlartifacts/` están excluidos en `.gitignore`; no se versionan.
+
+## Pruebas, validación de datos y seguridad
+
+La capa de calidad del proyecto tiene tres partes, cada una con su comando y su evidencia:
+
+| Parte | Herramienta | Dónde está | Comando |
+|---|---|---|---|
+| Pruebas unitarias y de reproducibilidad | PyTest | `tests/` | `python -m pytest` |
+| Validación de calidad e integridad de datos | DeepChecks | `mibici/validacion_datos.py`, `tests/test_validacion_datos.py` | `python -m mibici.validacion_datos` |
+| Seguridad del código, dependencias y secretos | bandit, pip-audit, PyTest | `tests/test_seguridad.py`, `reports/security/` | ver sección 3 |
+
+Con `make` disponible, los mismos chequeos corren con `make test`, `make security`,
+`make validacion` y `make check` (pruebas + seguridad).
+
+### 1. Pruebas unitarias (PyTest)
+
+Todas las pruebas están en `tests/` y corren con **un solo comando** desde la raíz del
+repositorio, con el entorno principal activado (la configuración de PyTest está en
+`pyproject.toml`). No requieren los datos de `data/` ni un servidor de MLflow: usan datos
+sintéticos generados con la semilla fija `SEED` (`tests/sinteticos.py`).
+
+```bash
+source .venv/Scripts/activate      # Windows (Git Bash); en Linux/macOS: .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pytest                   # suite completa
+python -m pytest tests/test_reproducibilidad.py -v   # solo reproducibilidad
+```
+
+| Archivo | Qué valida (casos normales y límite) |
+|---|---|
+| `test_dataset.py` | Ingesta: normalización de columnas (acentos, espacios), fechas inválidas, eliminación de datos personales, CSV en UTF-8 y latin-1, hash SHA-256, descarga idempotente y errores HTTP (red simulada). |
+| `test_features_p1.py` | Panel diario de P1: días sin viajes, rangos, calendario y feriados, rezagos y medias móviles sin fuga de información (`LeakageError`). |
+| `test_features_p2.py` | Panel horario y etiqueta de riesgo de P2: umbral inclusivo, capacidad 0, horizontes inválidos, variables que no usan el futuro e histórico sin fuga. |
+| `test_features_p3.py` | Perfil de uso de P3: filtros de duración, elegibilidad de estaciones, proporciones que suman 1, intensidad por días de exposición y entropías. |
+| `test_modeling_utils.py` | Parseo de hiperparámetros, tags de MLflow, particiones temporales, métricas, elección de umbral y fábrica de modelos de P1, P2 y P3. |
+| `test_reproducibilidad.py` | **Reproducibilidad del entrenamiento**: con la misma semilla, dos entrenamientos completos dan predicciones, umbral y métricas idénticas en P1, P2 y P3; con otra semilla el RandomForest cambia (control negativo). |
+| `test_seguridad.py` | Chequeos de seguridad (ver sección 3). |
+| `test_validacion_datos.py` | Validación con DeepChecks (ver sección 2); se omite en el entorno principal. |
+
+Evidencia de ejecución:
+
+![Suite completa de PyTest](docs/capturas/01_pytest.png)
+
+![Pruebas de reproducibilidad](docs/capturas/02_reproducibilidad.png)
+
+### 2. Validación de datos (DeepChecks)
+
+`mibici/validacion_datos.py` valida los mismos datos que usan los pipelines, construidos con
+las mismas funciones de `mibici.features`: la tabla de viajes, el catálogo de estaciones y
+los conjuntos TRAIN (ene-sep) y TEST (nov-dic) de P1, P2 y P3. Corre la suite
+`data_integrity` más `PercentOfNulls` (valores faltantes, nulos y tipos mezclados,
+duplicados, etiquetas en conflicto, outliers, correlaciones) y la suite
+`train_test_validation` (drift de variables y etiqueta, categorías nuevas, mezcla de muestras
+y fuga temporal entre TRAIN y TEST). También calcula chequeos exactos sobre la tabla completa.
+
+DeepChecks 0.19.1 (última versión) no es compatible con numpy 2, pandas 3 ni scikit-learn 1.9,
+así que corre en un **entorno aparte con Python 3.12** para no degradar el de entrenamiento:
+
+```bash
+python -m pip install uv
+python -m uv venv -p 3.12 .venv-validacion
+python -m uv pip install --python .venv-validacion -r requirements-validacion.txt
+source .venv-validacion/Scripts/activate
+python -m mibici.dataset                      # solo si aún no existen los datos
+python -m mibici.validacion_datos             # reportes en reports/deepchecks/
+python -m pytest tests/test_validacion_datos.py -v
+```
+
+Salidas en `reports/deepchecks/`: un reporte HTML por suite (no se versionan por su tamaño;
+se regeneran con el comando), y [`resumen.md`](reports/deepchecks/resumen.md) /
+`resumen.json` con el estado de cada chequeo. El proceso termina con error si falla un
+chequeo **crítico** (nulos, nulos o tipos mezclados, etiquetas en conflicto, fuga temporal).
+`tests/test_validacion_datos.py` comprueba además que los chequeos detectan problemas
+inyectados a propósito (nulos, duplicados, tipos mezclados, drift y fuga temporal).
+
+**Hallazgos con los datos reales (0 fallas críticas):**
+
+| Hallazgo | Valor | Tratamiento |
+|---|---:|---|
+| Viajes duplicados (mismos datos, distinto id) | 1,076 | Menos de 0.1 % del total; se documentan y se conservan. |
+| Viajes de menos de 60 s | 117,226 | Desanclajes fallidos; los pipelines de P1-P3 los descartan. |
+| Viajes de más de 24 h | 6 | Bicicletas no ancladas; los pipelines los descartan. |
+| Estaciones con capacidad 0 (ids 99, 109, 116, 138) | 4 | P2 las excluye (no hay umbral de riesgo). |
+| Nulos, `viaje_id` duplicado, duraciones negativas, ids fuera de catálogo | 0 | — |
+| Drift en `dias_activa` (P1) | KS = 0.99 | Esperado: es la antigüedad de la estación y crece con el tiempo, por eso TEST siempre es mayor que TRAIN. El clasificador de dominio (Multivariate Drift) lo separa por esa misma variable. |
+| Variables muy correlacionadas (rezagos y medias en P1, `neto_3h`/`neto_3h_rel` en P2, salidas/llegadas en P3) | > 0.9 | Esperado por construcción; los modelos de árboles lo toleran y el lineal de P1 usa regularización. |
+| Muestras de TEST repetidas en TRAIN (P2) | 11.8 % | No es fuga: son horas distintas con el mismo vector de conteos (muchas horas sin movimiento). La fuga temporal se descarta con los chequeos de fechas, que pasan. |
+
+![Validación con DeepChecks](docs/capturas/03_deepchecks.png)
+
+![Pruebas de la validación de datos](docs/capturas/04_deepchecks_pytest.png)
+
+### 3. Chequeos de seguridad
+
+```bash
+source .venv/Scripts/activate
+bandit -r mibici -f txt -o reports/security/bandit.txt                      # código
+pip-audit -r requirements.txt -o reports/security/pip_audit.txt            # dependencias
+pip-audit -r requirements-validacion.txt -o reports/security/pip_audit_validacion.txt
+python -m pytest tests/test_seguridad.py -v                                 # secretos y .gitignore
+```
+
+| Chequeo | Resultado |
+|---|---|
+| **bandit** sobre `mibici/` | 0 issues. Los 13 avisos de severidad baja iniciales (ejecución de `git` para registrar el commit en MLflow) se corrigieron con la ruta absoluta del ejecutable y el resto quedó justificado con `# nosec`. |
+| **pip-audit** entorno principal | Sin vulnerabilidades, tras actualizar mlflow 3.17.1 → 3.17.2 (CVE-2026-53995). |
+| **pip-audit** entorno de validación | pyarrow actualizado a 23.0.1. Queda `setuptools<81` como riesgo aceptado: DeepChecks necesita `pkg_resources` y las vulnerabilidades afectan la construcción de paquetes, que el proyecto no hace. |
+| **Secretos** (`test_seguridad.py`) | Ningún archivo sensible versionado; `.gitignore` cubre `.env`, llaves, `mlflow.db`, `mlruns/`, datos y entornos virtuales; sin credenciales en los archivos ni en **todo el historial de Git**. |
+| **Variables de entorno** | La URI de MLflow y las credenciales se leen del entorno o de un `.env` local (plantilla sin valores: [`.env.example`](.env.example)). |
+| **Datos personales** | La ingesta elimina el pseudónimo de usuario, el género y el año de nacimiento. |
+
+Detalle de hallazgos y decisiones: [`reports/security/SEGURIDAD.md`](reports/security/SEGURIDAD.md).
+
+![bandit](docs/capturas/05_bandit.png)
+
+![pip-audit](docs/capturas/06_pip_audit.png)
+
+![pip-audit del entorno de validación: solo setuptools, riesgo aceptado](docs/capturas/07_pip_audit_validacion.png)
 
 ## Git y control de versiones
 

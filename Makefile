@@ -91,6 +91,21 @@ validacion:
 mlflow-ui:
 	mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 
+## Pruebas unitarias, de reproducibilidad y de seguridad
+.PHONY: test
+test:
+	$(PYTHON_INTERPRETER) -m pytest
+
+## Seguridad: bandit (código) y pip-audit (dependencias)
+.PHONY: security
+security:
+	bandit -r mibici -f txt -o reports/security/bandit.txt
+	pip-audit -r requirements.txt -o reports/security/pip_audit.txt
+
+## Pruebas + seguridad
+.PHONY: check
+check: test security
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################
