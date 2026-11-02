@@ -81,6 +81,11 @@ p3:
 .PHONY: train
 train: p1 p2 p3
 
+## Validación de datos con DeepChecks (requiere el entorno de requirements-validacion.txt)
+.PHONY: validacion
+validacion:
+	$(PYTHON_INTERPRETER) -m mibici.validacion_datos
+	
 ## Servidor de tracking de MLflow (SQLite + Model Registry) en http://127.0.0.1:5000
 .PHONY: mlflow-ui
 mlflow-ui:
