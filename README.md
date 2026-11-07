@@ -17,7 +17,8 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
 
-Entrega de la semana 5 con datos de MiBici
+Última actualización: semana 8, el modelo de P1 se sirve como API REST en un contenedor (ver
+[API de predicción en contenedor](#api-de-predicción-en-contenedor)).
 
 ## Project Organization
 
