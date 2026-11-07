@@ -91,6 +91,11 @@ validacion:
 mlflow-ui:
 	mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 
+## Descarga del Model Registry el modelo P1 @champion a models/serving/p1 (para la API)
+.PHONY: export-model
+export-model:
+	$(PYTHON_INTERPRETER) -m mibici.modeling.export_model --tracking-uri sqlite:///mlflow.db
+
 ## Pruebas unitarias, de reproducibilidad y de seguridad
 .PHONY: test
 test:

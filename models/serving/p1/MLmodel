@@ -1,0 +1,44 @@
+artifact_path: file:///C:/Users/Working/Desktop/repos/Maestria/TC5061-Proyecto-Equipo32/mlruns/1/models/m-2da5f41adfe04d1bb4264dc82877c338/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.skops
+    predict_fn: predict
+    python_version: 3.12.1
+  sklearn:
+    code: null
+    pickled_model: model.skops
+    serialization_format: skops
+    sklearn_version: 1.9.1
+    skops_trusted_types:
+    - sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor
+    - sklearn.tree._tree.Tree
+is_signature_from_type_hint: false
+mlflow_version: 3.17.1
+model_id: m-2da5f41adfe04d1bb4264dc82877c338
+model_size_bytes: 180615
+model_uuid: m-2da5f41adfe04d1bb4264dc82877c338
+prompts: null
+run_id: fb967ed88f204de28ab74f38306fa6da
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "double", "name": "dia_semana", "required": true}, {"type": "double",
+    "name": "fin_semana", "required": true}, {"type": "double", "name": "feriado",
+    "required": true}, {"type": "double", "name": "lag_1", "required": true}, {"type":
+    "double", "name": "lag_2", "required": true}, {"type": "double", "name": "lag_7",
+    "required": true}, {"type": "double", "name": "lag_14", "required": true}, {"type":
+    "double", "name": "media_7d", "required": true}, {"type": "double", "name": "media_28d",
+    "required": true}, {"type": "double", "name": "media_mismo_dia_4sem", "required":
+    true}, {"type": "double", "name": "dias_activa", "required": true}, {"type": "double",
+    "name": "capacidad", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "float64", "shape": [-1]}}]'
+  params: null
+type_hint_from_example: false
+utc_time_created: '2026-10-26 05:15:04.707261'

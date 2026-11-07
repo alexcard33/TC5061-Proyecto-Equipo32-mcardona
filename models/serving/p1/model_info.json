@@ -1,0 +1,40 @@
+{
+  "question": "p1",
+  "registered_model": "mibici-equipo32-p1-demanda",
+  "version": "1",
+  "alias": "champion",
+  "model_uri": "models:/mibici-equipo32-p1-demanda@champion",
+  "run_id": "fb967ed88f204de28ab74f38306fa6da",
+  "aliases": [
+    "champion"
+  ],
+  "tags": {
+    "question": "p1",
+    "model_family": "glm_poisson",
+    "stage_of_work": "candidate",
+    "git_commit": "3fa495d4dee084c711ab21a4fdeb7fd2b1a23609",
+    "git_sucio": "False",
+    "data_version": "7aa5e436d887",
+    "source_run_id": "fb967ed88f204de28ab74f38306fa6da",
+    "source_run_name": "p1_candidato_poisson_lineal",
+    "source_experiment": "mibici-equipo32",
+    "lifecycle_scheme": "aliases",
+    "alias": "champion"
+  },
+  "input_columns": [
+    "dia_semana",
+    "fin_semana",
+    "feriado",
+    "lag_1",
+    "lag_2",
+    "lag_7",
+    "lag_14",
+    "media_7d",
+    "media_28d",
+    "media_mismo_dia_4sem",
+    "dias_activa",
+    "capacidad"
+  ],
+  "tracking_uri": "sqlite:///mlflow.db",
+  "exported_at": "2026-11-07T20:44:13+00:00"
+}

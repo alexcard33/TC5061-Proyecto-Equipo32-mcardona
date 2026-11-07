@@ -262,3 +262,11 @@ REGISTRO_MODELOS = {
         "challenger": "p3_candidato_gmm_k4",
     },
 }
+
+# ---------- Serving (API REST + contenedor) ----------
+# Modelo que se empaqueta en la imagen: pregunta, alias del Model Registry y carpeta destino.
+# La carpeta models/serving/ se versiona en Git para que la imagen se construya en cualquier
+# máquina sin acceso al servidor de MLflow.
+SERVING_QUESTION = "p1"
+SERVING_ALIAS = ALIAS_PRODUCCION
+SERVING_DIR = MODELS_DIR / "serving"
