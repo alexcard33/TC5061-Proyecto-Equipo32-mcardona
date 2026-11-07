@@ -96,6 +96,20 @@ mlflow-ui:
 export-model:
 	$(PYTHON_INTERPRETER) -m mibici.modeling.export_model --tracking-uri sqlite:///mlflow.db
 
+## Motor de contenedores (podman o docker) e imagen de la API
+ENGINE ?= podman
+IMAGE ?= mibici-api:1.0
+
+## Construye la imagen de la API (make image-build ENGINE=docker para Docker)
+.PHONY: image-build
+image-build:
+	$(ENGINE) build -f Containerfile -t $(IMAGE) .
+
+## Levanta la API en http://localhost:8000 (Ctrl+C para detener)
+.PHONY: image-run
+image-run:
+	$(ENGINE) run --rm --name mibici-api -p 8000:8000 $(IMAGE)
+
 ## Pruebas unitarias, de reproducibilidad y de seguridad
 .PHONY: test
 test:
