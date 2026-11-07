@@ -1,0 +1,13 @@
+# Dependencias del servicio de inferencia (API + contenedor).
+# Separadas de requirements.txt para que la imagen sea ligera: no incluye mkdocs, bandit,
+# notebooks ni el stack de entrenamiento. Versiones fijas = las del modelo registrado.
+fastapi==0.162.2
+uvicorn==0.54.0
+pydantic==2.14.3
+
+mlflow-skinny==3.17.2
+scikit-learn==1.9.1
+skops==0.16.0
+pandas==3.0.6
+numpy==2.5.4
+scipy==1.18.1
