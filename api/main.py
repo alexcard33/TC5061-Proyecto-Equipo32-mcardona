@@ -91,7 +91,19 @@ def predict(payload: PrediccionRequest, request: Request) -> PrediccionResponse:
     except Exception as exc:
         logger.exception("Error al predecir")
         raise HTTPException(status_code=500, detail=f"Error al ejecutar el modelo: {exc}") from exc
-    predicciones = np.asarray(salida, dtype="float64").ravel().tolist()
+    predicciones = np.asarray(salida, dtype="float64").ravel()
+
+    # Validación de la salida antes de responder.
+    if predicciones.shape[0] != len(df):
+        raise HTTPException(status_code=500, detail="El modelo no devolvió una predicción por instancia.")
+    if not np.all(np.isfinite(predicciones)):
+        raise HTTPException(status_code=500, detail="El modelo devolvió valores no finitos.")
+    predicciones = np.clip(predicciones, 0.0, None)  # es un conteo de viajes: nunca negativo
+
     return PrediccionResponse(
-        modelo=m.nombre, version=m.version, alias=m.alias, predicciones=predicciones
+        modelo=m.nombre,
+        version=m.version,
+        alias=m.alias,
+        n_instancias=len(df),
+        predicciones=predicciones.tolist(),
     )
