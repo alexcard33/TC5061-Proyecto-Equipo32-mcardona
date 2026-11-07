@@ -24,8 +24,11 @@ Entrega de la semana 5 con datos de MiBici
 ```
 ├── .env.example       <- Plantilla de variables de entorno (sin valores; copiar a .env)
 ├── LICENSE            <- Open-source license if one is chosen
+├── Containerfile      <- Imagen de la API de predicción (Docker o Podman)
 ├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
 ├── README.md          <- The top-level README for developers using this project.
+├── api                <- API REST con FastAPI que sirve el modelo de P1
+│
 ├── data
 │   ├── external       <- Data from third party sources.
 │   ├── interim        <- Intermediate data that has been transformed.
@@ -36,6 +39,7 @@ Entrega de la semana 5 con datos de MiBici
 │   └── capturas       <- Evidencia de ejecución de pruebas y chequeos
 │
 ├── models             <- Trained and serialized models, model predictions, or model summaries
+│   └── serving        <- Modelo exportado del Model Registry que se empaqueta en la imagen
 │
 ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
 │                         the creator's initials, and a short `-` delimited description, e.g.
@@ -55,6 +59,8 @@ Entrega de la semana 5 con datos de MiBici
 │                         generated with `pip freeze > requirements.txt`
 │
 ├── requirements-validacion.txt <- Entorno aislado (Python 3.12) para DeepChecks
+│
+├── requirements-api.txt <- Dependencias del servicio de la API (imagen del contenedor)
 │
 ├── tests              <- Pruebas de PyTest: unitarias, reproducibilidad, seguridad y DeepChecks
 │
@@ -77,6 +83,7 @@ Entrega de la semana 5 con datos de MiBici
     │   ├── p1_regresion.py     <- P1: viajes diarios por estación (baseline + 2 candidatos, MLflow)
     │   ├── p2_clasificacion.py <- P2: riesgo de quedarse sin bicis/anclajes (MLflow)
     │   ├── p3_clustering.py    <- P3: clustering de estaciones por patrón de uso (MLflow)
+    │   ├── export_model.py     <- Descarga del registry el modelo que sirve la API
     │   ├── predict.py          <- Code to run model inference with trained models          
     │   └── train.py            <- Code to train models
     │
@@ -612,6 +619,146 @@ Detalle de hallazgos y decisiones: [`reports/security/SEGURIDAD.md`](reports/sec
 ![pip-audit](docs/capturas/06_pip_audit.png)
 
 ![pip-audit del entorno de validación: solo setuptools, riesgo aceptado](docs/capturas/07_pip_audit_validacion.png)
+
+## API de predicción en contenedor
+
+Para esta entrega empaquetamos el modelo de P1 (demanda diaria por estación) como una API REST
+con FastAPI y la corremos dentro de un contenedor. Usamos Docker, pero el `Containerfile` sigue el
+estándar OCI y funciona igual con Podman (los comandos equivalentes van al final de esta sección).
+
+Archivos que se agregaron:
+
+- `api/main.py`: la aplicación de FastAPI y sus endpoints.
+- `api/schemas.py`: los esquemas de entrada y salida con Pydantic.
+- `api/model_loader.py`: carga el modelo, ya sea el que viene dentro de la imagen o directo del registry.
+- `mibici/modeling/export_model.py`: descarga el modelo del Model Registry a `models/serving/p1/`.
+- `Containerfile`, `.containerignore` y `.dockerignore`.
+- `requirements-api.txt`: dependencias solo del servicio, separadas de `requirements.txt` para que la imagen pese menos.
+
+### De dónde sale el modelo
+
+El servicio usa `mibici-equipo32-p1-demanda@champion` (versión 1). Teníamos dos opciones para
+llevarlo al contenedor: consultarlo al servidor de MLflow cada vez que arranca, usando
+`MLFLOW_TRACKING_URI=http://host.containers.internal:5000`, o descargarlo antes y meterlo en la imagen.
+
+Elegimos la segunda. Los artefactos de las versiones registradas apuntan a rutas locales de Windows
+(`file:///C:/...`) que no existen dentro del contenedor, y además así la imagen no depende de que
+alguien tenga el servidor de MLflow encendido. El modelo se baja del registry por nombre y alias con:
+
+```bash
+python -m mibici.modeling.export_model --tracking-uri sqlite:///mlflow.db
+# o bien: make export-model / mlflow run . -e export --env-manager local
+```
+
+Esto deja el modelo en `models/serving/p1/` junto con un `model_info.json` que guarda el nombre,
+la versión, el alias y el run de origen, así que siempre se puede rastrear qué versión del registry
+está sirviendo la API. Esa carpeta sí está en Git para que la imagen se pueda construir desde un
+clon limpio. Solo hay que volver a exportar cuando cambie el `champion`.
+
+Si se prefiere cargar el modelo directamente del registry, la imagen ya lo soporta sin
+reconstruirla; basta con pasarle variables de entorno (el servidor de MLflow tiene que servir los
+artefactos):
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e MODEL_SOURCE=registry \
+  -e MLFLOW_TRACKING_URI=http://host.docker.internal:5000 \
+  -e MODEL_NAME=mibici-equipo32-p1-demanda \
+  -e MODEL_ALIAS=champion \
+  mibici-api:1.0
+```
+
+### Construir la imagen y levantar el contenedor
+
+Con Docker Desktop encendido, desde la raíz del repositorio:
+
+```bash
+docker build -f Containerfile -t mibici-api:1.0 .
+docker run -d --name mibici-api -p 8000:8000 mibici-api:1.0
+docker ps        # debe aparecer como "Up ... (healthy)"
+```
+
+También están `make image-build ENGINE=docker` y `make image-run ENGINE=docker`. Para detenerlo:
+`docker rm -f mibici-api`.
+
+La imagen parte de `python:3.12-slim` (la misma versión de Python con la que se entrenó el
+modelo), instala versiones fijas de las dependencias, corre con un usuario sin privilegios y
+tiene un healthcheck contra `/health`. Las versiones de mlflow, scikit-learn, skops, pandas y numpy
+son las mismas del `requirements.txt` del modelo registrado, para que MLflow no marque
+diferencias de entorno al cargarlo.
+
+### Consumir la API
+
+Una vez arriba, la documentación interactiva queda en http://localhost:8000/docs. Los endpoints son:
+
+- `GET /health`: indica si el modelo cargó bien.
+- `GET /model-info`: nombre, versión, alias y run del modelo que se está sirviendo, y las columnas que espera.
+- `POST /predict`: recibe una lista de observaciones estación-día y regresa los viajes esperados para cada una.
+
+Cada observación lleva las 12 variables con las que se entrenó el modelo: `dia_semana`
+(0 = lunes, 6 = domingo), `fin_semana`, `feriado`, los rezagos `lag_1`, `lag_2`, `lag_7` y
+`lag_14`, los promedios `media_7d`, `media_28d` y `media_mismo_dia_4sem`, `dias_activa` y
+`capacidad`. Se pueden mandar de 1 a 1,000 observaciones por petición.
+
+Ejemplo de petición:
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"instancias":[{"dia_semana":5,"fin_semana":1,"feriado":0,"lag_1":62,"lag_2":75,"lag_7":31,"lag_14":40,"media_7d":54,"media_28d":54.43,"media_mismo_dia_4sem":35,"dias_activa":304,"capacidad":15}]}'
+```
+
+Respuesta:
+
+```json
+{"modelo":"mibici-equipo32-p1-demanda","version":"1","alias":"champion","n_instancias":1,"predicciones":[36.656464691846594]}
+```
+
+Es decir, para esa estación (15 anclajes) se esperan unos 37 viajes ese sábado.
+
+Las entradas se validan antes de llegar al modelo. Todos los campos son obligatorios y no se
+aceptan campos de más. Además, `dia_semana` debe estar entre 0 y 6, `fin_semana` y `feriado`
+solo pueden ser 0 o 1, los conteos y promedios no pueden ser negativos ni NaN, y `capacidad`
+tiene que ser al menos 1. También se revisa que `fin_semana` corresponda con `dia_semana`.
+Si algo no cumple, la API contesta 422 y dice qué campo falló:
+
+```json
+{"detail":[{"type":"greater_than_equal","loc":["body","instancias",0,"lag_1"],"msg":"Input should be greater than or equal to 0","input":-10,"ctx":{"ge":0.0}}]}
+```
+
+Esta validación no es solo de forma: sin ella, un `lag_1` negativo llegaba al modelo y fallaba con
+un error 500 porque el
+modelo transforma los conteos y con un valor negativo le salía NaN. Del lado de la salida,
+la API revisa que haya una predicción por observación, que sean números finitos y que no sean
+negativos, porque son conteos de viajes.
+
+![API respondiendo desde el contenedor](docs/capturas/08_docker_api_predict.png)
+
+![Documentación de la API en /docs](docs/capturas/09_docker_api_docs.png)
+
+### Estrategia de despliegue
+
+Optamos por inferencia en tiempo real (online): el modelo queda cargado en memoria y responde
+cada petición al momento. Para P1 tiene sentido porque el operador consulta la demanda esperada
+de una estación cuando está planeando el rebalanceo, y cada predicción tarda milisegundos.
+Como el endpoint acepta varias observaciones en una sola llamada, el mismo servicio sirve para
+predecir todas las estaciones de un día de una vez, que sería el caso por lotes (por ejemplo,
+una corrida nocturna que deje listas las predicciones del día siguiente). Empaquetarlo en un
+contenedor es lo que nos asegura que corra igual en cualquier máquina, y es la base para la
+arquitectura de microservicios de la siguiente entrega.
+
+### Con Podman
+
+Los mismos pasos con Podman:
+
+```bash
+podman build -t mibici-api:1.0 .
+podman run -d --name mibici-api -p 8000:8000 mibici-api:1.0
+```
+
+Podman toma el `Containerfile` y el `.containerignore` automáticamente. En formato OCI ignora el
+`HEALTHCHECK`; si se quiere conservar hay que construir con `--format docker`. Para la opción del
+registry, la dirección del host es `http://host.containers.internal:5000`.
 
 ## Git y control de versiones
 
