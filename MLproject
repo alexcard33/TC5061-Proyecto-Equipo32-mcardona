@@ -29,3 +29,11 @@ entry_points:
     parameters:
       question: {type: string, default: all}
     command: "python -m mibici.modeling.register --question {question}"
+
+  # Descarga del Model Registry el modelo que sirve la API (por defecto P1 @champion) a
+  # models/serving/<pregunta>/ con model_info.json, para empaquetarlo en el contenedor.
+  export:
+    parameters:
+      question: {type: string, default: p1}
+      alias: {type: string, default: champion}
+    command: "python -m mibici.modeling.export_model --question {question} --alias {alias}"
