@@ -62,6 +62,11 @@ create_environment:
 data:
 	$(PYTHON_INTERPRETER) -m mibici.dataset
 
+## Ingesta del periodo actual (ene-oct 2026) para monitoreo de drift (data/manifest_actual.json)
+.PHONY: data-actual
+data-actual:
+	$(PYTHON_INTERPRETER) -m mibici.dataset --periodo actual
+
 ## P1: regresión de viajes diarios por estación (MLflow)
 .PHONY: p1
 p1:

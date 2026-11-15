@@ -56,10 +56,30 @@ VIAJES_URLS = {
 
 NOMENCLATURA_URL = "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_09.csv"
 
+# ---------- Datos del periodo actual (monitoreo de drift y A/B testing) ----------
+VIAJES_ACTUAL_URLS = {
+    "2026_01": "https://www.mibici.net/site/assets/files/120163/datos_abiertos_2026_01.csv",
+    "2026_02": "https://www.mibici.net/site/assets/files/121761/datos_abiertos_2026_02.csv",
+    "2026_03": "https://www.mibici.net/site/assets/files/123236/datos_abiertos_2026_03.csv",
+    "2026_04": "https://www.mibici.net/site/assets/files/124927/datos_abiertos_2026_04.csv",
+    "2026_05": "https://www.mibici.net/site/assets/files/125943/datos_abiertos_2026_05.csv",
+    "2026_06": "https://www.mibici.net/site/assets/files/127734/datos_abiertos_2026_06.csv",
+    "2026_07": "https://www.mibici.net/site/assets/files/129006/datos_abiertos_2026_07.csv",
+    "2026_08": "https://www.mibici.net/site/assets/files/130362/datos_abiertos_2026_08.csv",
+    "2026_09": "https://www.mibici.net/site/assets/files/131825/datos_abiertos_2026_09.csv",
+    "2026_10": "https://www.mibici.net/site/assets/files/133188/datos_abiertos_2026_10.csv",
+}
+
+# Nomenclatura vigente al cierre del periodo actual (incluye estaciones nuevas de 2026).
+NOMENCLATURA_ACTUAL_URL = "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_10.csv"
+
 # ---------- Archivos de salida ----------
 VIAJES_PARQUET = PROCESSED_DATA_DIR / "viajes.parquet"
 ESTACIONES_PARQUET = PROCESSED_DATA_DIR / "estaciones.parquet"
 MANIFEST_PATH = DATA_DIR / "manifest.json"
+VIAJES_ACTUAL_PARQUET = PROCESSED_DATA_DIR / "viajes_actual.parquet"
+ESTACIONES_ACTUAL_PARQUET = PROCESSED_DATA_DIR / "estaciones_actual.parquet"
+MANIFEST_ACTUAL_PATH = DATA_DIR / "manifest_actual.json"
 
 # ---------- Partición temporal (sin fuga del futuro) ----------
 # Entrenamiento: ene-oct 2025 · Prueba: nov-dic 2025
@@ -138,10 +158,12 @@ P1_BASELINE_LAG_DIAS = 7  # ingenuo estacional: mismo día de la semana anterior
 P1_MIN_DURATION_SECONDS = 60
 P1_MAX_DURATION_SECONDS = 86400
 
-# Días de descanso obligatorio (art. 74 LFT) y Jueves/Viernes Santo de 2025.
+# Días de descanso obligatorio (art. 74 LFT) y Jueves/Viernes Santo de 2025 y 2026.
 P1_FERIADOS = [
     "2025-01-01", "2025-02-03", "2025-03-17", "2025-04-17", "2025-04-18",
     "2025-05-01", "2025-09-16", "2025-11-17", "2025-12-25",
+    "2026-01-01", "2026-02-02", "2026-03-16", "2026-04-02", "2026-04-03",
+    "2026-05-01", "2026-09-16", "2026-11-16", "2026-12-25",
 ]  # fmt: skip
 
 P1_LINEAL_ALPHA = 1e-3
@@ -270,3 +292,18 @@ REGISTRO_MODELOS = {
 SERVING_QUESTION = "p1"
 SERVING_ALIAS = ALIAS_PRODUCCION
 SERVING_DIR = MODELS_DIR / "serving"
+
+# ---------- Monitoreo de drift y A/B testing (Entregable 8) ----------
+MONITOREO_QUESTION = SERVING_QUESTION
+
+# Referencia: la ventana con la que se entrenó la versión vigente de P1 (ene-sep 2025).
+DRIFT_REF_START = P1_TRAIN_START  # 2025-01-01
+DRIFT_REF_END = P1_VAL_START  # 2025-10-01 (exclusivo)
+DRIFT_ACTUAL_START = "2026-01-01"
+DRIFT_ACTUAL_END = "2026-10-01"  # exclusivo: ene-sep 2026
+
+# Versión alternativa (v2) y conjunto del A/B testing.
+V2_TRAIN_START = P1_TRAIN_START  # 2025-01-01
+V2_VAL_START = "2026-07-01"
+AB_EVAL_START = "2026-08-01"
+AB_EVAL_END = "2026-11-01"  # exclusivo: ago-oct 2026
