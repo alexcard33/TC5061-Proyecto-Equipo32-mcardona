@@ -91,6 +91,11 @@ train: p1 p2 p3
 validacion:
 	$(PYTHON_INTERPRETER) -m mibici.validacion_datos
 	
+## Drift de P1 con Evidently (requiere el entorno de requirements-monitoreo.txt)
+.PHONY: drift
+drift:
+	$(PYTHON_INTERPRETER) -m mibici.monitoreo_drift
+
 ## Servidor de tracking de MLflow (SQLite + Model Registry) en http://127.0.0.1:5000
 .PHONY: mlflow-ui
 mlflow-ui:

@@ -228,6 +228,9 @@ files/
 .venv-validacion/
 reports/deepchecks/*.html
 
+# Entorno del monitoreo de drift con Evidently
+.venv-monitoreo/
+
 # Credenciales y secretos: nunca se versionan (plantilla en .env.example)
 .env.*
 !.env.example
