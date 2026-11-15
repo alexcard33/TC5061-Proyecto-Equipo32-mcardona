@@ -165,3 +165,41 @@ def test_descargar_error_http_no_deja_archivo(tmp_path, monkeypatch):
     with pytest.raises(dataset.requests.HTTPError):
         descargar("https://ejemplo/falla.csv", destino)
     assert not destino.exists()
+
+
+# ---------- periodos de ingesta (referencia vs actual) ----------
+def test_periodos_no_comparten_salidas():
+    """Ingerir el periodo actual no debe sobrescribir los datos de entrenamiento."""
+    ref, act = dataset.PERIODOS["referencia"], dataset.PERIODOS["actual"]
+    for clave in ("nomenclatura_raw", "viajes_parquet", "estaciones_parquet", "manifest"):
+        assert ref[clave] != act[clave], clave
+    assert not set(ref["viajes_urls"]) & set(act["viajes_urls"])  # meses distintos
+
+
+def test_leer_viajes_combina_referencia_y_actual(tmp_path, monkeypatch):
+    ref, act = tmp_path / "viajes.parquet", tmp_path / "viajes_actual.parquet"
+    pd.DataFrame(
+        {"inicio_viaje": pd.to_datetime(["2025-12-31 10:00"]), "origen_id": [1]}
+    ).to_parquet(ref)
+    pd.DataFrame(
+        {
+            "inicio_viaje": pd.to_datetime(["2026-01-01 09:00", "2026-01-02 09:00"]),
+            "origen_id": [1, 2],
+        }
+    ).to_parquet(act)
+    monkeypatch.setattr(dataset, "VIAJES_PARQUET", ref)
+    monkeypatch.setattr(dataset, "VIAJES_ACTUAL_PARQUET", act)
+
+    df = dataset.leer_viajes(columnas=["inicio_viaje", "origen_id"])
+    assert len(df) == 3
+    assert set(df["inicio_viaje"].dt.year) == {2025, 2026}
+    assert len(dataset.leer_viajes(incluir_actual=False)) == 1
+
+
+def test_leer_viajes_sin_periodo_actual_da_instruccion(tmp_path, monkeypatch):
+    ref = tmp_path / "viajes.parquet"
+    pd.DataFrame({"origen_id": [1]}).to_parquet(ref)
+    monkeypatch.setattr(dataset, "VIAJES_PARQUET", ref)
+    monkeypatch.setattr(dataset, "VIAJES_ACTUAL_PARQUET", tmp_path / "no_existe.parquet")
+    with pytest.raises(FileNotFoundError, match="--periodo actual"):
+        dataset.leer_viajes()
