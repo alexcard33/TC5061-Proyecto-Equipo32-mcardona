@@ -7,7 +7,9 @@ Para cada pregunta definida en REGISTRO_MODELOS (config.py):
    salvo que ya exista una versión de esa corrida (el comando es idempotente).
 3. Copia a la versión las tags de linaje: run de origen, experimento, commit, versión de datos.
 4. Asigna el alias champion (producción) y, si se definió, challenger.
-5. Verifica que el modelo en producción carga por nombre y alias (models:/<nombre>@champion).
+5. Marca como "ninguno" el alias de las versiones que lo perdieron (por ejemplo, el challenger
+   anterior cuando se promueve otro modelo).
+6. Verifica que el modelo en producción carga por nombre y alias (models:/<nombre>@champion).
 
 Uso::
 
@@ -75,6 +77,27 @@ def version_de_run(client: MlflowClient, nombre: str, run):
     return mlflow.register_model(f"runs:/{run_id}/modelo", nombre)
 
 
+def limpiar_alias_obsoletos(client: MlflowClient, nombre: str) -> None:
+    """Corrige las versiones que todavía dicen tener un alias que ya pasó a otra versión.
+
+    La etiqueta alias y la descripción se escriben al asignar el alias, pero MLflow no las
+    cambia cuando ese alias se mueve a otra versión. Sin esta limpieza, un challenger viejo
+    seguiría anunciándose como challenger en la interfaz.
+    """
+    con_alias = {str(v) for v in client.get_registered_model(nombre).aliases.values()}
+    for version in client.search_model_versions(f"name = '{nombre}'"):
+        anterior = (version.tags or {}).get("alias")
+        if str(version.version) in con_alias or anterior in (None, "ninguno"):
+            continue
+        client.set_model_version_tag(nombre, version.version, "alias", "ninguno")
+        client.update_model_version(
+            nombre,
+            version.version,
+            description=f"Sin alias (antes {anterior}). {version.description or ''}".strip(),
+        )
+        logger.info(f"{nombre} v{version.version}: ya no tiene el alias {anterior}")
+
+
 def registrar_pregunta(client: MlflowClient, experiment_id: str, question: str) -> None:
     cfg = REGISTRO_MODELOS[question]
     if not cfg.get("champion"):
@@ -114,6 +137,8 @@ def registrar_pregunta(client: MlflowClient, experiment_id: str, question: str) 
         )
         client.set_registered_model_alias(cfg["nombre"], alias, version.version)
         logger.info(f"{cfg['nombre']} v{version.version} <- @{alias} ({run_name})")
+
+    limpiar_alias_obsoletos(client, cfg["nombre"])
 
     uri = f"models:/{cfg['nombre']}@{ALIAS_PRODUCCION}"
     modelo = mlflow.pyfunc.load_model(uri)

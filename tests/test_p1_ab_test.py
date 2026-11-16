@@ -4,11 +4,13 @@ Cubren la comparación pareada, la regla de decisión y las tablas sin necesitar
 ni servidor de MLflow.
 """
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from mibici.config import AB_EVAL_END, AB_EVAL_START
+from mibici.config import AB_DIR, AB_EVAL_END, AB_EVAL_START, REGISTRO_MODELOS
 from mibici.features import P1_FEATURES
 from mibici.modeling import p1_ab_test as ab
 from tests.sinteticos import generar_viajes
@@ -102,6 +104,17 @@ def test_tabla_markdown_incluye_metricas_y_decision():
 
     assert "| mae |" in texto and "champion (versión 1)" in texto
     assert "Decisión: queda como vigente el challenger" in texto
+
+
+def test_el_champion_configurado_es_el_ganador_del_ab():
+    """La configuración del registry debe coincidir con la evidencia versionada del A/B."""
+    ruta = AB_DIR / "p1_ab_resumen.json"
+    if not ruta.exists():
+        pytest.skip("Todavía no se ha corrido el A/B (python -m mibici.modeling.p1_ab_test)")
+    resumen = json.loads(ruta.read_text(encoding="utf-8"))
+    rol_ganador = resumen["decision"]["version_vigente"]
+    ganador = resumen["versiones"][rol_ganador]["run_name"]
+    assert REGISTRO_MODELOS["p1"]["champion"] == ganador
 
 
 @pytest.fixture
