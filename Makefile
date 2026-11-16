@@ -96,6 +96,11 @@ validacion:
 p1-v2:
 	$(PYTHON_INTERPRETER) -m mibici.modeling.p1_reentrenamiento
 
+## A/B testing de P1: champion contra challenger (requiere el servidor de MLflow)
+.PHONY: ab-test
+ab-test:
+	$(PYTHON_INTERPRETER) -m mibici.modeling.p1_ab_test
+
 ## Drift de P1 con Evidently (requiere el entorno de requirements-monitoreo.txt)
 .PHONY: drift
 drift:

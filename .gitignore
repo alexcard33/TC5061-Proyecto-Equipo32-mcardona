@@ -232,6 +232,7 @@ reports/deepchecks/*.html
 .venv-monitoreo/
 # Las tablas del monitoreo sí se versionan: son evidencia del reporte de drift
 !reports/drift/*.csv
+!reports/ab_test/*.csv
 
 # Credenciales y secretos: nunca se versionan (plantilla en .env.example)
 .env.*
