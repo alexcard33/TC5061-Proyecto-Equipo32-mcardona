@@ -1,7 +1,8 @@
 # TC5061-Proyecto-Equipo32
 Proyecto integrador de TC5061 (Operaciones de aprendizaje automático): propuesta de solución de ML
 sobre los datos abiertos de [MiBici](https://mibici.net/es/datos-abiertos/), el sistema de bicicleta
-pública del Área Metropolitana de Guadalajara. Datos: ene–dic 2025 (4,532,032 viajes, 484 estaciones).
+pública del Área Metropolitana de Guadalajara. Datos: ene–dic 2025 (4,532,032 viajes, 484 estaciones)
+y, para el monitoreo de drift, ene–oct 2026 (3,997,597 viajes).
 
 El proyecto responde tres preguntas de negocio:
 
@@ -17,8 +18,9 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
 
-Última actualización: semana 8, el modelo de P1 se sirve como API REST en un contenedor (ver
-[API de predicción en contenedor](#api-de-predicción-en-contenedor)).
+Última actualización: Entregable 8, monitoreo de drift con Evidently, reentrenamiento y A/B
+testing de P1; la API sirve ahora la versión 3 del modelo (ver
+[Monitoreo de drift, reentrenamiento y A/B testing](#monitoreo-de-drift-reentrenamiento-y-ab-testing-entregable-8)).
 
 ## Project Organization
 
@@ -52,7 +54,10 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
 ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
 │
 ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
+│   ├── ab_test        <- Resultados del A/B testing de P1 (tablas, gráfica y decisión)
 │   ├── deepchecks     <- Resumen de la validación de datos (los HTML se regeneran)
+│   ├── drift          <- Reporte de drift de Evidently y sus resúmenes
+│   ├── reentrenamiento <- Métricas de validación de la versión 2 de P1
 │   ├── security       <- Salidas de bandit y pip-audit y SEGURIDAD.md
 │   └── figures        <- Generated graphics and figures to be used in reporting
 │
@@ -60,6 +65,8 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
 │                         generated with `pip freeze > requirements.txt`
 │
 ├── requirements-validacion.txt <- Entorno aislado (Python 3.12) para DeepChecks
+│
+├── requirements-monitoreo.txt <- Entorno aislado (pandas 2.3) para el drift con Evidently
 │
 ├── requirements-api.txt <- Dependencias del servicio de la API (imagen del contenedor)
 │
@@ -79,11 +86,18 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
     │
     ├── validacion_datos.py     <- Validación de calidad e integridad de datos con DeepChecks
     │
+    ├── panel_p1.py             <- Panel estación-día de P1 compartido por drift, reentrenamiento y A/B
+    │
+    ├── monitoreo_drift.py      <- Reporte de drift de P1 con Evidently
+    │
     ├── modeling                
     │   ├── __init__.py 
     │   ├── p1_regresion.py     <- P1: viajes diarios por estación (baseline + 2 candidatos, MLflow)
     │   ├── p2_clasificacion.py <- P2: riesgo de quedarse sin bicis/anclajes (MLflow)
     │   ├── p3_clustering.py    <- P3: clustering de estaciones por patrón de uso (MLflow)
+    │   ├── p1_reentrenamiento.py <- Versión 2 de P1 reentrenada con datos de 2026
+    │   ├── p1_ab_test.py       <- A/B testing de P1 entre champion y challenger
+    │   ├── register.py         <- Registra los modelos elegidos y asigna los aliases
     │   ├── export_model.py     <- Descarga del registry el modelo que sirve la API
     │   ├── predict.py          <- Code to run model inference with trained models          
     │   └── train.py            <- Code to train models
@@ -126,6 +140,8 @@ python -m mibici.dataset
 ```
 
 `dataset.py` descarga los datos públicos de MiBici definidos en `config.py`, genera los archivos procesados y crea `data/manifest.json`.
+Con `python -m mibici.dataset --periodo actual` descarga además los meses de 2026 que se usan en el
+monitoreo; quedan en archivos y en un manifiesto aparte (`data/manifest_actual.json`).
 
 El manifiesto incluye una `data_version` calculada a partir de los archivos de entrada. Esta versión se registra posteriormente en MLflow para mantener trazabilidad entre datos y experimentos.
 
@@ -298,16 +314,21 @@ solo como evaluación final. El análisis completo está en el reporte de la ent
 
 | Pregunta | Champion (producción) | Challenger | Métrica de selección |
 |---|---|---|---|
-| P1 | `p1_candidato_poisson_lineal` (PoissonRegressor, alpha=0.001) | `p1_candidato_hgb_tuneado` | VAL MAE 5.104 (baseline 6.232) |
+| P1 | `p1_v2_reentrenado` (PoissonRegressor, alpha=0.001, entrenado con ene 2025 – jun 2026) | `p1_candidato_poisson_lineal` | A/B ago–oct 2026: MAE 6.071 contra 6.420 |
 | P2 | `p2_candidato_hgb_tuneado` (HGB, lr=0.05, max_iter=350, max_leaf_nodes=63) | `p2_candidato_hgb` | VAL F1 0.468 (baseline 0.415) |
 | P3 | `p3_kmeans_final` (K-Means, k=4, n_init=20) | `p3_candidato_gmm_k4` | TRAIN Davies-Bouldin 1.584 (baseline 1.772) |
+
+En el Entregable 8 cambió el champion de P1: la versión reentrenada ganó el A/B contra la
+original (`p1_candidato_poisson_lineal`, VAL MAE 5.104 contra 6.232 del baseline), que ahora es
+el challenger. Sus comandos están en
+[Monitoreo de drift, reentrenamiento y A/B testing](#monitoreo-de-drift-reentrenamiento-y-ab-testing-entregable-8).
 
 Comandos para reproducir desde un clon limpio (después de `mlflow run . -e ingest --env-manager local`):
 
 ```bash
 OPTS="--experiment-name mibici-equipo32 --env-manager local"
 
-# P1 · champion
+# P1 · versión original (challenger desde el Entregable 8)
 mlflow run . -e train -P question=p1 -P model=poisson $OPTS
 
 # P2 · champion
@@ -356,7 +377,8 @@ mlflow run . -e register --env-manager local
 ```
 
 El comando es idempotente (si la corrida ya tiene versión, la reutiliza), copia el linaje,
-asigna los aliases y verifica la carga del modelo en producción:
+asigna los aliases, marca con `alias=ninguno` las versiones que perdieron el suyo y verifica la
+carga del modelo en producción:
 
 ```python
 import mlflow
@@ -638,7 +660,8 @@ Archivos que se agregaron:
 
 ### De dónde sale el modelo
 
-El servicio usa `mibici-equipo32-p1-demanda@champion` (versión 1). Teníamos dos opciones para
+El servicio usa `mibici-equipo32-p1-demanda@champion`, que desde el Entregable 8 es la versión 3
+(antes era la versión 1). Teníamos dos opciones para
 llevarlo al contenedor: consultarlo al servidor de MLflow cada vez que arranca, usando
 `MLFLOW_TRACKING_URI=http://host.containers.internal:5000`, o descargarlo antes y meterlo en la imagen.
 
@@ -712,10 +735,12 @@ curl -X POST http://localhost:8000/predict \
 Respuesta:
 
 ```json
-{"modelo":"mibici-equipo32-p1-demanda","version":"1","alias":"champion","n_instancias":1,"predicciones":[36.656464691846594]}
+{"modelo":"mibici-equipo32-p1-demanda","version":"3","alias":"champion","n_instancias":1,"predicciones":[38.107957614537376]}
 ```
 
-Es decir, para esa estación (15 anclajes) se esperan unos 37 viajes ese sábado.
+Es decir, para esa estación (15 anclajes) se esperan unos 38 viajes ese sábado. La versión 1
+estimaba 36.7 para la misma entrada; la captura de abajo es de la entrega anterior, cuando la API
+servía esa versión.
 
 Las entradas se validan antes de llegar al modelo. Todos los campos son obligatorios y no se
 aceptan campos de más. Además, `dia_semana` debe estar entre 0 y 6, `fin_semana` y `feriado`
@@ -761,6 +786,163 @@ Podman toma el `Containerfile` y el `.containerignore` automáticamente. En form
 `HEALTHCHECK`; si se quiere conservar hay que construir con `--format docker`. Para la opción del
 registry, la dirección del host es `http://host.containers.internal:5000`.
 
+## Monitoreo de drift, reentrenamiento y A/B testing (Entregable 8)
+
+En esta entrega le agregamos a P1 la capa de observabilidad: medimos cuánto se alejaron los datos
+de 2026 de los datos con los que se entrenó el modelo, entrenamos una versión nueva con datos
+recientes y comparamos las dos versiones con un A/B testing antes de decidir cuál se queda en
+producción. El flujo completo es:
+
+1. Ingesta del periodo actual (ene–oct 2026), separada de los datos de entrenamiento.
+2. Reporte de drift con Evidently entre la referencia y el periodo actual.
+3. Versión 2 de P1: el mismo modelo reentrenado con datos hasta junio de 2026.
+4. A/B testing entre la versión vigente y la versión 2 sobre ago–oct 2026.
+5. Promoción de la versión ganadora y actualización del modelo que sirve la API.
+
+### Periodos
+
+| Conjunto | Fechas | Para qué se usa |
+|---|---|---|
+| Referencia | ene–sep 2025 | Ventana de entrenamiento de la versión original; base del drift |
+| Actual | ene–sep 2026 | Los mismos meses un año después, para que el drift no se confunda con la estacionalidad |
+| Entrenamiento de la versión 2 | ene 2025 – jun 2026 (validación: jul 2026) | Reentrenamiento con ventana creciente |
+| Holdout del A/B | ago–oct 2026 | Datos que ninguna de las dos versiones vio al entrenar |
+
+Las fechas viven en `config.py` (`DRIFT_*`, `V2_*` y `AB_EVAL_*`) y `tests/test_monitoreo_config.py`
+revisa que no se traslapen. Los datos de 2026 (3,997,597 viajes) se ingieren con `--periodo actual`
+y quedan en `viajes_actual.parquet` y `data/manifest_actual.json` (`data_version = 8460b856c7e8`),
+sin tocar los de 2025. También agregamos los feriados de 2026 a `P1_FERIADOS`; sin ellos, la
+variable `feriado` valía 0 en todos los feriados del periodo actual.
+
+El panel estación-día de P1 se arma en un solo lugar (`mibici/panel_p1.py`) y lo usan el drift, el
+reentrenamiento y el A/B, así que los tres trabajan con exactamente las mismas variables. Las filas
+de 2025 salen idénticas a las del entrenamiento original: 90,230 filas, las mismas del run de la
+versión 1.
+
+### Cómo reproducirlo
+
+Evidently 0.7.23 todavía no funciona con pandas 3, así que el reporte de drift corre en su propio
+entorno, igual que DeepChecks. El reentrenamiento y el A/B usan el entorno principal y necesitan el
+servidor de MLflow encendido (`make mlflow-ui`).
+
+```bash
+# Entorno principal (.venv)
+python -m mibici.dataset --periodo actual            # o: make data-actual
+
+# Entorno de monitoreo (se crea una sola vez)
+py -3.12 -m venv .venv-monitoreo
+source .venv-monitoreo/Scripts/activate
+python -m pip install -r requirements-monitoreo.txt
+python -m mibici.monitoreo_drift                     # o: make drift
+
+# De vuelta en el entorno principal
+python -m mibici.modeling.p1_reentrenamiento          # o: mlflow run . -e retrain --env-manager local
+python -m mibici.modeling.register --question p1
+python -m mibici.modeling.p1_ab_test                  # o: mlflow run . -e ab_test --env-manager local
+make export-model                                     # deja la versión vigente en models/serving/p1
+```
+
+Como `REGISTRO_MODELOS` ya refleja la promoción, al reproducir desde cero el `register` deja la
+versión reentrenada como champion y el A/B compara los mismos dos modelos con los papeles
+invertidos: la diferencia de MAE sale con el signo contrario y la decisión es la misma.
+
+Los scripts que abren runs de MLflow fuerzan UTF-8 en la consola. En Windows, MLflow imprime el
+enlace del run con un emoji y, con la codificación cp1252, el run se quedaba en estado RUNNING.
+
+### Resultados del drift
+
+| Indicador | Referencia (ene–sep 2025) | Actual (ene–sep 2026) |
+|---|---|---|
+| Filas estación-día | 90,230 | 107,733 |
+| Estaciones | 369 | 472 |
+| Viajes promedio por estación-día | 33.0 | 29.8 |
+
+Evidently encontró drift en 9 de las 13 variables (69%, arriba del 50% que marca drift en el
+conjunto): `dias_activa` (score 4.57), los rezagos y las medias móviles (entre 0.10 y 0.14) y la
+variable objetivo `viajes` (0.10). El calendario y la capacidad no cambiaron. Con muestras de este
+tamaño Evidently usa la distancia de Wasserstein normalizada para las variables numéricas y la de
+Jensen-Shannon para las categóricas, las dos con umbral 0.1. Las cifras las verificamos
+recalculando el panel de forma independiente.
+
+Lo que encontramos al revisarlo con detalle:
+
+- `dias_activa` cambia por construcción. Cuenta los días desde la primera salida de cada estación
+  dentro del panel, que empieza el 1 de enero de 2025; en el entrenamiento llegaba a 272 y en 2026
+  llega a 637. El modelo lineal extrapola con esos valores, y además la variable termina midiendo
+  los días transcurridos desde enero de 2025 más que la antigüedad real de la estación.
+- El drift de la demanda se explica sobre todo por la expansión de la red. Hay 103 estaciones nuevas
+  (101 abrieron entre mayo y agosto de 2026) con 10.7 viajes al día en promedio. Si se comparan
+  solo las 369 estaciones que ya existían, ninguna variable de demanda pasa el umbral (`viajes`
+  queda en 0.064) y su demanda bajó apenas 5.7%.
+- El drift no es parejo en el tiempo. Febrero y marzo casi no tienen drift, de mayo a agosto sí, y
+  en septiembre y octubre la demanda crece mucho: octubre de 2026 tuvo 48% más viajes que octubre
+  de 2025. Revisamos que no fueran registros duplicados: el aumento es gradual y el número de
+  estaciones activas se mantiene.
+- Calidad: no hay nulos ni columnas vacías. Hay 155 filas duplicadas, que son días sin viajes de
+  estaciones distintas con las mismas variables (no es un error), y tres estaciones (240, 405 y
+  407) que no vienen en la nomenclatura de octubre de 2026 y quedan con capacidad 0.
+
+![Drift mensual de P1 contra la referencia](reports/drift/p1_drift_por_mes.png)
+
+Las salidas están en `reports/drift/`: el reporte de Evidently en HTML y JSON, las tablas por
+variable, por mes y solo con estaciones comunes, y `resumen.json` con las cifras principales.
+
+### Versión 2 y A/B testing
+
+La versión 2 usa el mismo modelo que la original (PoissonRegressor con alpha=0.001) y solo cambia
+la ventana de entrenamiento, así que cualquier diferencia se debe a los datos. Se entrenó con
+191,455 filas de 388 estaciones, se validó con julio de 2026 (MAE 5.563) y quedó como versión 3 de
+`mibici-equipo32-p1-demanda`.
+
+El A/B evalúa las dos versiones sobre las mismas 42,520 filas del holdout. Cada estación-día recibe
+la predicción de ambas, así que la comparación es pareada:
+
+| Métrica (ago–oct 2026) | Versión 1 (original) | Versión 3 (reentrenada) | Baseline (lag 7 días) |
+|---|---|---|---|
+| MAE | 6.420 | **6.071** | 7.552 |
+| RMSE | 11.817 | **11.296** | 14.498 |
+| WAPE | 18.8% | **17.8%** | 22.2% |
+| R² | 0.911 | **0.919** | 0.866 |
+| Sesgo | -2.77 | **-1.22** | -1.50 |
+| Error del total diario | 10.1% | **7.8%** | 10.4% |
+
+La diferencia de MAE es de -0.349 (-5.4%), con un intervalo de confianza al 95% de
+[-0.506, -0.201]. Lo calculamos con un bootstrap que remuestrea días completos (2,000 muestras),
+porque los errores de las estaciones en un mismo día están correlacionados. La prueba de Wilcoxon
+sobre el MAE diario da p = 4.2×10⁻⁵ y la versión 3 gana 62 de 92 días. La mejora se concentra en
+septiembre (-10.2%) y en las estaciones que ya existían (-5.9%), donde la versión 3 reduce a menos
+de la mitad la subestimación de la demanda.
+
+![A/B diario: viajes totales y MAE por día](reports/ab_test/p1_ab_diario.png)
+
+La regla de decisión la fijamos en `config.py` antes de correr el A/B: el challenger solo se
+promueve si todo el intervalo de confianza de la diferencia queda debajo de cero. Se cumplió, así
+que la versión 3 pasó a `champion` y la versión 1 quedó como `challenger`. Las tablas completas, por
+mes y por tipo de estación, están en `reports/ab_test/`, y el run `p1_ab_test` de MLflow guarda las
+métricas, las predicciones y la decisión.
+
+### Promoción
+
+- `REGISTRO_MODELOS` en `config.py` ahora tiene `p1_v2_reentrenado` como champion y
+  `p1_candidato_poisson_lineal` como challenger, y `register` movió los alias. La versión 2 (HGB
+  tuneado) sigue registrada, sin alias y marcada con `alias=ninguno`.
+- `tests/test_p1_ab_test.py` revisa que el champion configurado sea el ganador que guarda
+  `reports/ab_test/p1_ab_resumen.json`, para que la configuración no contradiga la evidencia.
+- `models/serving/p1/` tiene ahora la versión 3 y la API la sirve (`GET /model-info` devuelve
+  `"version": "3"`). MLflow detectó `pytest` en el entorno donde se registró esta versión y lo
+  incluyó en sus requirements; como la imagen no lo instala, al cargar el modelo aparece una
+  advertencia de diferencia de entorno, pero la API funciona normal.
+
+### Recomendación: Continuous Training
+
+Recomendamos reentrenar P1 de forma periódica, cada mes y con ventana creciente, y usar el monitoreo
+como disparador: reentrenar antes de tiempo si las variables de demanda tienen drift en las
+estaciones que ya existían o si el MAE del mes se aleja del de validación. Las dos versiones
+subestimaron el aumento de septiembre y octubre de 2026, porque ninguna lo había visto. Con la
+versión 3 en producción, la referencia del siguiente ciclo debe ser su ventana de entrenamiento
+(ene 2025 – jun 2026). También conviene redefinir `dias_activa` como la antigüedad real de cada
+estación. El análisis completo está en el reporte de la entrega.
+
 ## Git y control de versiones
 
 Los datos de MiBici, modelos serializados, base de datos de MLflow, artefactos de MLflow y resultados generados por P3 se excluyen mediante `.gitignore`.
@@ -772,6 +954,10 @@ siguiendo [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/)
 `main` está protegida; cada integrante abre al menos un PR y revisa al menos uno.
 
 Para P3 se utiliza la rama `feature/p3-clustering`.
+
+El Entregable 8 se integró en ramas separadas, una por paso: `feature/drift-datos`,
+`feature/evidently`, `feature/modelo-v2`, `feature/ab-test`, `feature/promocion-v2` y la de esta
+documentación.
 
 ## Equipo 32
 
