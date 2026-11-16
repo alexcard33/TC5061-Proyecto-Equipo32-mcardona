@@ -242,6 +242,9 @@ P2_MLFLOW_SEARCH_RUN_NAME = "p2_busqueda_hgb"
 P3_MLFLOW_GMM_RUN_NAME = "p3_candidato_gmm_k4"
 P3_MLFLOW_SEARCH_RUN_NAME = "p3_busqueda_kmeans"
 
+# Versión 2 de P1: el mismo modelo reentrenado con datos de 2026 (Entregable 8).
+P1_MLFLOW_V2_RUN_NAME = "p1_v2_reentrenado"
+
 # Modelo que entrena el entry point `train` cuando se usa -P model=default.
 MODELO_DEFAULT = {"p1": "poisson", "p2": "hgb", "p3": "kmeans"}
 
@@ -261,7 +264,9 @@ REGISTRO_MODELOS = {
             "siguiente (regresión a nivel estación-día). Entrada: features de P1_FEATURES."
         ),
         "champion": "p1_candidato_poisson_lineal",
-        "challenger": "p1_candidato_hgb_tuneado",
+        # Desde el Entregable 8 el challenger es la versión reentrenada con datos de 2026.
+        # El HGB tuneado (p1_candidato_hgb_tuneado) sigue registrado como versión 2.
+        "challenger": P1_MLFLOW_V2_RUN_NAME,
     },
     "p2": {
         "nombre": "mibici-equipo32-p2-riesgo",
@@ -310,3 +315,6 @@ AB_EVAL_END = "2026-11-01"  # exclusivo: ago-oct 2026
 
 # Reportes de Evidently (se generan con python -m mibici.monitoreo_drift).
 DRIFT_DIR = REPORTS_DIR / "drift"
+
+# Métricas de la versión 2 (python -m mibici.modeling.p1_reentrenamiento).
+REENTRENAMIENTO_DIR = REPORTS_DIR / "reentrenamiento"

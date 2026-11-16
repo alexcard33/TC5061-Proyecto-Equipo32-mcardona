@@ -34,6 +34,14 @@ entry_points:
       question: {type: string, default: all}
     command: "python -m mibici.modeling.register --question {question}"
 
+  # Versión 2 de P1 (Entregable 8): mismo modelo reentrenado con ene 2025 - jun 2026.
+  # Deja el run p1_v2_reentrenado; después `register -P question=p1` lo registra como
+  # nueva versión de mibici-equipo32-p1-demanda con el alias challenger.
+  retrain:
+    parameters:
+      model: {type: string, default: poisson}
+    command: "python -m mibici.modeling.p1_reentrenamiento --model {model}"
+
   # Descarga del Model Registry el modelo que sirve la API (por defecto P1 @champion) a
   # models/serving/<pregunta>/ con model_info.json, para empaquetarlo en el contenedor.
   export:
