@@ -318,3 +318,12 @@ DRIFT_DIR = REPORTS_DIR / "drift"
 
 # Métricas de la versión 2 (python -m mibici.modeling.p1_reentrenamiento).
 REENTRENAMIENTO_DIR = REPORTS_DIR / "reentrenamiento"
+
+# A/B testing de P1: champion contra challenger sobre el holdout de ago-oct 2026.
+# Regla de decisión, fijada antes de ver resultados: el challenger se promueve solo si
+# el intervalo de confianza de la diferencia de MAE (challenger menos champion) queda
+# completamente debajo de cero.
+P1_MLFLOW_AB_RUN_NAME = "p1_ab_test"
+AB_BOOTSTRAP_MUESTRAS = 2000
+AB_NIVEL_CONFIANZA = 0.95
+AB_DIR = REPORTS_DIR / "ab_test"

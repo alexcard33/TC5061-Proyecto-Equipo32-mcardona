@@ -42,6 +42,11 @@ entry_points:
       model: {type: string, default: poisson}
     command: "python -m mibici.modeling.p1_reentrenamiento --model {model}"
 
+  # A/B testing de P1 (Entregable 8): champion contra challenger sobre ago-oct 2026.
+  # Deja el run p1_ab_test y los reportes en reports/ab_test/.
+  ab_test:
+    command: "python -m mibici.modeling.p1_ab_test"
+
   # Descarga del Model Registry el modelo que sirve la API (por defecto P1 @champion) a
   # models/serving/<pregunta>/ con model_info.json, para empaquetarlo en el contenedor.
   export:
