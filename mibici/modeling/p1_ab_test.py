@@ -305,6 +305,11 @@ def tabla_markdown(
 
 
 def ejecutar(tracking_uri: str = MLFLOW_TRACKING_URI) -> dict:
+    # El estado de git se revisa antes de escribir los reportes; si no, los archivos nuevos
+    # de reports/ab_test marcarían el árbol como sucio y el linaje del run quedaría mal.
+    git_commit, git_sucio = obtener_git_commit()
+    if git_sucio:
+        logger.warning("Hay cambios sin commit: el run no será reproducible desde git_commit")
     mlflow.set_tracking_uri(tracking_uri)
     client = MlflowClient()
     nombre = REGISTRO_MODELOS["p1"]["nombre"]
@@ -378,7 +383,6 @@ def ejecutar(tracking_uri: str = MLFLOW_TRACKING_URI) -> dict:
         json.dumps(resumen, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 
-    git_commit, git_sucio = obtener_git_commit()
     mlflow.set_experiment(P1_MLFLOW_EXPERIMENT)
     with mlflow.start_run(run_name=P1_MLFLOW_AB_RUN_NAME) as run:
         mlflow.set_tags(
