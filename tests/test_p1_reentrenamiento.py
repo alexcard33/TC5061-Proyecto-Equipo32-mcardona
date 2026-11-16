@@ -3,6 +3,9 @@
 Como el resto de las pruebas de modelado, no necesita datos reales ni servidor de MLflow.
 """
 
+import io
+import sys
+
 import pandas as pd
 import pytest
 
@@ -17,6 +20,7 @@ from mibici.config import (
 )
 from mibici.features import P1_FEATURES
 from mibici.modeling import p1_reentrenamiento as v2
+from mibici.modeling.mlflow_utils import consola_utf8
 from tests.sinteticos import generar_viajes
 
 
@@ -63,3 +67,16 @@ def test_registro_apunta_la_v2_como_challenger():
 def test_baseline_no_se_reentrena():
     with pytest.raises(ValueError, match="no válido"):
         v2.entrenar(model="baseline")
+
+
+def test_consola_utf8_permite_el_emoji_que_imprime_mlflow(monkeypatch):
+    """En una consola cp1252 el enlace de MLflow con emoji fallaba al cerrar el run."""
+    salida = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", salida)
+    monkeypatch.setattr(sys, "stderr", io.TextIOWrapper(io.BytesIO(), encoding="cp1252"))
+
+    consola_utf8()
+    sys.stdout.write("\U0001f3c3 View run")
+    sys.stdout.flush()
+
+    assert salida.buffer.getvalue().decode("utf-8") == "\U0001f3c3 View run"

@@ -18,6 +18,7 @@ from pathlib import Path
 import shutil
 # bandit B404/B603: solo se ejecuta git (ruta absoluta) con argumentos fijos.
 import subprocess  # nosec B404
+import sys
 
 import mlflow
 import mlflow.data
@@ -45,6 +46,17 @@ def obtener_git_commit() -> tuple[str, bool]:
     except (subprocess.CalledProcessError, OSError):
         return "desconocido", True
     return commit, bool(estado)
+
+
+def consola_utf8() -> None:
+    """Fuerza UTF-8 en la salida de la consola.
+
+    Al cerrar un run, MLflow imprime el enlace con un emoji. En Windows, cuando la consola usa
+    cp1252 (por ejemplo en Git Bash o cmd), esa escritura falla y el run se queda en RUNNING.
+    """
+    for flujo in (sys.stdout, sys.stderr):
+        if hasattr(flujo, "reconfigure"):
+            flujo.reconfigure(encoding="utf-8", errors="replace")
 
 
 ARCHIVOS_CONFIG = ("mibici/config.py", "MLproject", "python_env.yaml", "requirements.txt")

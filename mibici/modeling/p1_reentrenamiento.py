@@ -47,6 +47,7 @@ from mibici.config import (
 )
 from mibici.features import P1_FEATURES
 from mibici.modeling.mlflow_utils import (
+    consola_utf8,
     obtener_git_commit,
     registrar_artefactos,
     registrar_config,
@@ -182,6 +183,7 @@ def main(
     run_name: str = typer.Option(P1_MLFLOW_V2_RUN_NAME, help="Nombre del run en MLflow."),
     tracking_uri: str = typer.Option(MLFLOW_TRACKING_URI, help="URI del servidor de tracking."),
 ):
+    consola_utf8()
     entrenar(model, run_name, tracking_uri)
 
 
