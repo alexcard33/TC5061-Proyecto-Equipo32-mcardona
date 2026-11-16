@@ -263,10 +263,11 @@ REGISTRO_MODELOS = {
             "P1 · Demanda: predice cuántos viajes se iniciarán en cada estación MiBici el día "
             "siguiente (regresión a nivel estación-día). Entrada: features de P1_FEATURES."
         ),
-        "champion": "p1_candidato_poisson_lineal",
-        # Desde el Entregable 8 el challenger es la versión reentrenada con datos de 2026.
-        # El HGB tuneado (p1_candidato_hgb_tuneado) sigue registrado como versión 2.
-        "challenger": P1_MLFLOW_V2_RUN_NAME,
+        # Entregable 8: el A/B (reports/ab_test) dio como ganadora a la versión reentrenada
+        # con datos de 2026, así que pasa a champion y la original queda como challenger.
+        # El HGB tuneado (p1_candidato_hgb_tuneado) sigue registrado como versión 2, sin alias.
+        "champion": P1_MLFLOW_V2_RUN_NAME,
+        "challenger": P1_MLFLOW_LINEAL_RUN_NAME,
     },
     "p2": {
         "nombre": "mibici-equipo32-p2-riesgo",

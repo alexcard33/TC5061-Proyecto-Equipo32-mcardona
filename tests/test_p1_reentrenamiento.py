@@ -52,16 +52,18 @@ def test_particiones_sin_filas_incompletas(particiones):
     assert not val[P1_FEATURES].isna().any().any()
 
 
-def test_v2_usa_el_mismo_modelo_que_la_version_vigente():
-    _, _, familia, run_vigente, params = v2.construir_modelo("poisson", {})
+def test_v2_usa_el_mismo_modelo_que_la_version_original():
+    _, _, familia, run_original, params = v2.construir_modelo("poisson", {})
     assert familia == "glm_poisson"
-    assert run_vigente == REGISTRO_MODELOS["p1"]["champion"] == P1_MLFLOW_LINEAL_RUN_NAME
+    assert run_original == P1_MLFLOW_LINEAL_RUN_NAME
     assert params["alpha"] == 0.001 and params["max_iter"] == 1000
 
 
-def test_registro_apunta_la_v2_como_challenger():
+def test_registro_tras_la_promocion():
+    """Después del A/B la versión reentrenada es la vigente y la original queda de challenger."""
     assert ALIAS_CHALLENGER == "challenger"
-    assert REGISTRO_MODELOS["p1"]["challenger"] == P1_MLFLOW_V2_RUN_NAME
+    assert REGISTRO_MODELOS["p1"]["champion"] == P1_MLFLOW_V2_RUN_NAME
+    assert REGISTRO_MODELOS["p1"]["challenger"] == P1_MLFLOW_LINEAL_RUN_NAME
 
 
 def test_baseline_no_se_reentrena():
