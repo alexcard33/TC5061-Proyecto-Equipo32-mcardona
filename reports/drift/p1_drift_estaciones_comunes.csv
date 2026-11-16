@@ -1,0 +1,14 @@
+variable,metodo,umbral,score,drift
+dias_activa,Wasserstein distance (normed),0.1,4.957528116666344,True
+media_28d,Wasserstein distance (normed),0.1,0.09910167339039304,False
+lag_14,Wasserstein distance (normed),0.1,0.09704095565917496,False
+media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.09515343740373726,False
+lag_7,Wasserstein distance (normed),0.1,0.08402177751705897,False
+media_7d,Wasserstein distance (normed),0.1,0.08196783184755119,False
+lag_2,Wasserstein distance (normed),0.1,0.07051455775497328,False
+lag_1,Wasserstein distance (normed),0.1,0.06722466369131233,False
+viajes,Wasserstein distance (normed),0.1,0.06417423921017476,False
+capacidad,Wasserstein distance (normed),0.1,0.02131772060497394,False
+feriado,Jensen-Shannon distance,0.1,0.0026219250948400566,False
+dia_semana,Jensen-Shannon distance,0.1,0.00015725858772788455,False
+fin_semana,Jensen-Shannon distance,0.1,3.469380903795391e-05,False

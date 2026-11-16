@@ -307,3 +307,6 @@ V2_TRAIN_START = P1_TRAIN_START  # 2025-01-01
 V2_VAL_START = "2026-07-01"
 AB_EVAL_START = "2026-08-01"
 AB_EVAL_END = "2026-11-01"  # exclusivo: ago-oct 2026
+
+# Reportes de Evidently (se generan con python -m mibici.monitoreo_drift).
+DRIFT_DIR = REPORTS_DIR / "drift"

@@ -1,0 +1,131 @@
+mes,variable,metodo,umbral,score,drift,filas,media_viajes_mes
+2026-01,dias_activa,Wasserstein distance (normed),0.1,3.2235626680184404,True,11500,30.143
+2026-01,lag_14,Wasserstein distance (normed),0.1,0.22057213907273193,True,11500,30.143
+2026-01,media_28d,Wasserstein distance (normed),0.1,0.20755757774096514,True,11500,30.143
+2026-01,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.20719745685462362,True,11500,30.143
+2026-01,lag_7,Wasserstein distance (normed),0.1,0.18059337937016726,True,11500,30.143
+2026-01,media_7d,Wasserstein distance (normed),0.1,0.143770911227239,True,11500,30.143
+2026-01,lag_2,Wasserstein distance (normed),0.1,0.10268187344660755,True,11500,30.143
+2026-01,lag_1,Wasserstein distance (normed),0.1,0.09215912632989338,False,11500,30.143
+2026-01,viajes,Wasserstein distance (normed),0.1,0.08681691565727069,False,11500,30.143
+2026-01,dia_semana,Jensen-Shannon distance,0.1,0.03918495973855649,False,11500,30.143
+2026-01,capacidad,Wasserstein distance (normed),0.1,0.021162547287938257,False,11500,30.143
+2026-01,feriado,Jensen-Shannon distance,0.1,0.01641652425695835,False,11500,30.143
+2026-01,fin_semana,Jensen-Shannon distance,0.1,0.0035828982448764617,False,11500,30.143
+2026-02,dias_activa,Wasserstein distance (normed),0.1,3.640237456031062,True,10388,30.714
+2026-02,viajes,Wasserstein distance (normed),0.1,0.07409051370370863,False,10388,30.714
+2026-02,lag_1,Wasserstein distance (normed),0.1,0.07407020806318367,False,10388,30.714
+2026-02,lag_2,Wasserstein distance (normed),0.1,0.07313585597268257,False,10388,30.714
+2026-02,media_7d,Wasserstein distance (normed),0.1,0.05680595031435565,False,10388,30.714
+2026-02,media_28d,Wasserstein distance (normed),0.1,0.04676481479942429,False,10388,30.714
+2026-02,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.033631563507326774,False,10388,30.714
+2026-02,lag_14,Wasserstein distance (normed),0.1,0.02475952919915447,False,10388,30.714
+2026-02,feriado,Jensen-Shannon distance,0.1,0.023309369502181335,False,10388,30.714
+2026-02,lag_7,Wasserstein distance (normed),0.1,0.022137258881017325,False,10388,30.714
+2026-02,capacidad,Wasserstein distance (normed),0.1,0.021117525343522518,False,10388,30.714
+2026-02,dia_semana,Jensen-Shannon distance,0.1,0.00015725858772788455,False,10388,30.714
+2026-02,fin_semana,Jensen-Shannon distance,0.1,3.469380903795391e-05,False,10388,30.714
+2026-03,dias_activa,Wasserstein distance (normed),0.1,4.057343624449857,True,11501,31.72
+2026-03,lag_7,Wasserstein distance (normed),0.1,0.09086310702743271,False,11501,31.72
+2026-03,lag_14,Wasserstein distance (normed),0.1,0.08716900660785307,False,11501,31.72
+2026-03,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.07880227146486045,False,11501,31.72
+2026-03,media_28d,Wasserstein distance (normed),0.1,0.07285876423888824,False,11501,31.72
+2026-03,lag_1,Wasserstein distance (normed),0.1,0.055396515029880314,False,11501,31.72
+2026-03,media_7d,Wasserstein distance (normed),0.1,0.05531550395488613,False,11501,31.72
+2026-03,lag_2,Wasserstein distance (normed),0.1,0.05000958407344971,False,11501,31.72
+2026-03,viajes,Wasserstein distance (normed),0.1,0.04970278451025268,False,11501,31.72
+2026-03,dia_semana,Jensen-Shannon distance,0.1,0.03920079602344441,False,11501,31.72
+2026-03,capacidad,Wasserstein distance (normed),0.1,0.021117525343522518,False,11501,31.72
+2026-03,feriado,Jensen-Shannon distance,0.1,0.01658464410887967,False,11501,31.72
+2026-03,fin_semana,Jensen-Shannon distance,0.1,0.0035632348941540422,False,11501,31.72
+2026-04,dias_activa,Wasserstein distance (normed),0.1,4.488588985018442,True,11130,30.702
+2026-04,media_28d,Wasserstein distance (normed),0.1,0.1110962189285965,True,11130,30.702
+2026-04,media_7d,Wasserstein distance (normed),0.1,0.10477813411481438,True,11130,30.702
+2026-04,lag_14,Wasserstein distance (normed),0.1,0.09495159533099479,False,11130,30.702
+2026-04,lag_2,Wasserstein distance (normed),0.1,0.09124129905490791,False,11130,30.702
+2026-04,lag_7,Wasserstein distance (normed),0.1,0.08994467267509286,False,11130,30.702
+2026-04,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.08613164885228884,False,11130,30.702
+2026-04,lag_1,Wasserstein distance (normed),0.1,0.07884097388998698,False,11130,30.702
+2026-04,viajes,Wasserstein distance (normed),0.1,0.07498515613497599,False,11130,30.702
+2026-04,feriado,Jensen-Shannon distance,0.1,0.07283656225587891,False,11130,30.702
+2026-04,dia_semana,Jensen-Shannon distance,0.1,0.03653559613024858,False,11130,30.702
+2026-04,capacidad,Wasserstein distance (normed),0.1,0.021117525343522518,False,11130,30.702
+2026-04,fin_semana,Jensen-Shannon distance,0.1,0.015097709530838383,False,11130,30.702
+2026-05,dias_activa,Wasserstein distance (normed),0.1,4.919834345587027,True,11501,26.498
+2026-05,viajes,Wasserstein distance (normed),0.1,0.19614776483792504,True,11501,26.498
+2026-05,lag_1,Wasserstein distance (normed),0.1,0.17863981147433478,True,11501,26.498
+2026-05,media_7d,Wasserstein distance (normed),0.1,0.17546447980239044,True,11501,26.498
+2026-05,lag_2,Wasserstein distance (normed),0.1,0.16414684429498003,True,11501,26.498
+2026-05,lag_7,Wasserstein distance (normed),0.1,0.16200387528325808,True,11501,26.498
+2026-05,media_28d,Wasserstein distance (normed),0.1,0.12671235945952045,True,11501,26.498
+2026-05,lag_14,Wasserstein distance (normed),0.1,0.12663680544810277,True,11501,26.498
+2026-05,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.12287186499364493,True,11501,26.498
+2026-05,dia_semana,Jensen-Shannon distance,0.1,0.03921664010842102,False,11501,26.498
+2026-05,fin_semana,Jensen-Shannon distance,0.1,0.028304349847854852,False,11501,26.498
+2026-05,capacidad,Wasserstein distance (normed),0.1,0.021117525343522518,False,11501,26.498
+2026-05,feriado,Jensen-Shannon distance,0.1,0.01658464410887967,False,11501,26.498
+2026-06,dias_activa,Wasserstein distance (normed),0.1,5.306488992907352,True,11201,29.282
+2026-06,media_28d,Wasserstein distance (normed),0.1,0.18058460270369361,True,11201,29.282
+2026-06,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.1657000013825984,True,11201,29.282
+2026-06,lag_14,Wasserstein distance (normed),0.1,0.16349904170358667,True,11201,29.282
+2026-06,media_7d,Wasserstein distance (normed),0.1,0.1560509065955024,True,11201,29.282
+2026-06,lag_2,Wasserstein distance (normed),0.1,0.15237386837855882,True,11201,29.282
+2026-06,lag_7,Wasserstein distance (normed),0.1,0.1457390234550954,True,11201,29.282
+2026-06,lag_1,Wasserstein distance (normed),0.1,0.14031822574088523,True,11201,29.282
+2026-06,viajes,Wasserstein distance (normed),0.1,0.1227353071752749,True,11201,29.282
+2026-06,feriado,Jensen-Shannon distance,0.1,0.09252363822028034,False,11201,29.282
+2026-06,dia_semana,Jensen-Shannon distance,0.1,0.03701093341045979,False,11201,29.282
+2026-06,capacidad,Wasserstein distance (normed),0.1,0.020426815821600334,False,11201,29.282
+2026-06,fin_semana,Jensen-Shannon distance,0.1,0.014736220596808226,False,11201,29.282
+2026-07,dias_activa,Wasserstein distance (normed),0.1,5.131703152808692,True,12624,28.873
+2026-07,media_28d,Wasserstein distance (normed),0.1,0.14727906143713693,True,12624,28.873
+2026-07,media_7d,Wasserstein distance (normed),0.1,0.1415683165218203,True,12624,28.873
+2026-07,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.13110402146406896,True,12624,28.873
+2026-07,viajes,Wasserstein distance (normed),0.1,0.13053278712229593,True,12624,28.873
+2026-07,lag_1,Wasserstein distance (normed),0.1,0.12690280543859378,True,12624,28.873
+2026-07,lag_2,Wasserstein distance (normed),0.1,0.12514953274987034,True,12624,28.873
+2026-07,lag_7,Wasserstein distance (normed),0.1,0.11525937081721334,True,12624,28.873
+2026-07,lag_14,Wasserstein distance (normed),0.1,0.11120247399013643,True,12624,28.873
+2026-07,feriado,Jensen-Shannon distance,0.1,0.09252363822028034,False,12624,28.873
+2026-07,capacidad,Wasserstein distance (normed),0.1,0.05864654172333292,False,12624,28.873
+2026-07,dia_semana,Jensen-Shannon distance,0.1,0.04017872283012697,False,12624,28.873
+2026-07,fin_semana,Jensen-Shannon distance,0.1,0.023021494246763655,False,12624,28.873
+2026-08,dias_activa,Wasserstein distance (normed),0.1,4.970800553453734,True,13795,26.893
+2026-08,lag_14,Wasserstein distance (normed),0.1,0.23066489583687055,True,13795,26.893
+2026-08,media_28d,Wasserstein distance (normed),0.1,0.22664103696006951,True,13795,26.893
+2026-08,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.22411543568137865,True,13795,26.893
+2026-08,lag_7,Wasserstein distance (normed),0.1,0.2139018045352697,True,13795,26.893
+2026-08,media_7d,Wasserstein distance (normed),0.1,0.20643331984456217,True,13795,26.893
+2026-08,viajes,Wasserstein distance (normed),0.1,0.18792023256646762,True,13795,26.893
+2026-08,lag_1,Wasserstein distance (normed),0.1,0.18768383667212593,True,13795,26.893
+2026-08,lag_2,Wasserstein distance (normed),0.1,0.18137151341118682,True,13795,26.893
+2026-08,capacidad,Wasserstein distance (normed),0.1,0.09693947446871447,False,13795,26.893
+2026-08,feriado,Jensen-Shannon distance,0.1,0.09252363822028034,False,13795,26.893
+2026-08,dia_semana,Jensen-Shannon distance,0.1,0.03906091195728451,False,13795,26.893
+2026-08,fin_semana,Jensen-Shannon distance,0.1,0.02803032568850793,False,13795,26.893
+2026-09,dias_activa,Wasserstein distance (normed),0.1,5.0382946496405605,True,14093,33.387
+2026-09,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.16039759249338623,True,14093,33.387
+2026-09,media_28d,Wasserstein distance (normed),0.1,0.15681095773565804,True,14093,33.387
+2026-09,lag_14,Wasserstein distance (normed),0.1,0.1565633343827863,True,14093,33.387
+2026-09,capacidad,Wasserstein distance (normed),0.1,0.1144660398919696,True,14093,33.387
+2026-09,lag_7,Wasserstein distance (normed),0.1,0.09064748700251744,False,14093,33.387
+2026-09,media_7d,Wasserstein distance (normed),0.1,0.08749406426516318,False,14093,33.387
+2026-09,lag_2,Wasserstein distance (normed),0.1,0.07210154380449424,False,14093,33.387
+2026-09,viajes,Wasserstein distance (normed),0.1,0.06342527933518306,False,14093,33.387
+2026-09,lag_1,Wasserstein distance (normed),0.1,0.06168630691708844,False,14093,33.387
+2026-09,dia_semana,Jensen-Shannon distance,0.1,0.0362268742012773,False,14093,33.387
+2026-09,feriado,Jensen-Shannon distance,0.1,0.019024734891264997,False,14093,33.387
+2026-09,fin_semana,Jensen-Shannon distance,0.1,0.01499183919984772,False,14093,33.387
+2026-10,dias_activa,Wasserstein distance (normed),0.1,5.437267558390121,True,14632,41.525
+2026-10,lag_1,Wasserstein distance (normed),0.1,0.26536531754681547,True,14632,41.525
+2026-10,lag_2,Wasserstein distance (normed),0.1,0.26239078266775406,True,14632,41.525
+2026-10,media_7d,Wasserstein distance (normed),0.1,0.25935501085487983,True,14632,41.525
+2026-10,viajes,Wasserstein distance (normed),0.1,0.25603713835706765,True,14632,41.525
+2026-10,lag_7,Wasserstein distance (normed),0.1,0.22658055289505843,True,14632,41.525
+2026-10,lag_14,Wasserstein distance (normed),0.1,0.19019010080394932,True,14632,41.525
+2026-10,media_28d,Wasserstein distance (normed),0.1,0.18405332906467167,True,14632,41.525
+2026-10,media_mismo_dia_4sem,Wasserstein distance (normed),0.1,0.1513043799455859,True,14632,41.525
+2026-10,capacidad,Wasserstein distance (normed),0.1,0.11635868747947849,True,14632,41.525
+2026-10,feriado,Jensen-Shannon distance,0.1,0.09252363822028034,False,14632,41.525
+2026-10,dia_semana,Jensen-Shannon distance,0.1,0.039216640108421,False,14632,41.525
+2026-10,fin_semana,Jensen-Shannon distance,0.1,0.0035632348941540422,False,14632,41.525

@@ -228,6 +228,11 @@ files/
 .venv-validacion/
 reports/deepchecks/*.html
 
+# Entorno del monitoreo de drift con Evidently
+.venv-monitoreo/
+# Las tablas del monitoreo sí se versionan: son evidencia del reporte de drift
+!reports/drift/*.csv
+
 # Credenciales y secretos: nunca se versionan (plantilla en .env.example)
 .env.*
 !.env.example
