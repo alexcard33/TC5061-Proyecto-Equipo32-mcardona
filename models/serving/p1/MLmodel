@@ -1,4 +1,4 @@
-artifact_path: file:///C:/Users/Working/Desktop/repos/Maestria/TC5061-Proyecto-Equipo32/mlruns/1/models/m-2da5f41adfe04d1bb4264dc82877c338/artifacts
+artifact_path: file:///C:/Users/Working/Desktop/repos/Maestria/TC5061-Proyecto-Equipo32/mlruns/1/models/m-6de34f9b639e48ab9ed029b52d73e8e5/artifacts
 flavors:
   python_function:
     env:
@@ -18,11 +18,11 @@ flavors:
     - sklearn.tree._tree.Tree
 is_signature_from_type_hint: false
 mlflow_version: 3.17.1
-model_id: m-2da5f41adfe04d1bb4264dc82877c338
-model_size_bytes: 180615
-model_uuid: m-2da5f41adfe04d1bb4264dc82877c338
+model_id: m-6de34f9b639e48ab9ed029b52d73e8e5
+model_size_bytes: 180673
+model_uuid: m-6de34f9b639e48ab9ed029b52d73e8e5
 prompts: null
-run_id: fb967ed88f204de28ab74f38306fa6da
+run_id: e40c098a073f422db3fb7c3193db9fbe
 saved_input_example_info:
   artifact_path: input_example.json
   pandas_orient: split
@@ -41,4 +41,4 @@ signature:
   outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "float64", "shape": [-1]}}]'
   params: null
 type_hint_from_example: false
-utc_time_created: '2026-10-26 05:15:04.707261'
+utc_time_created: '2026-11-16 00:35:39.833147'

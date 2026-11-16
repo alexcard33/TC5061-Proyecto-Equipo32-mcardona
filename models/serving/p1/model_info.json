@@ -1,10 +1,10 @@
 {
   "question": "p1",
   "registered_model": "mibici-equipo32-p1-demanda",
-  "version": "1",
+  "version": "3",
   "alias": "champion",
   "model_uri": "models:/mibici-equipo32-p1-demanda@champion",
-  "run_id": "fb967ed88f204de28ab74f38306fa6da",
+  "run_id": "e40c098a073f422db3fb7c3193db9fbe",
   "aliases": [
     "champion"
   ],
@@ -12,14 +12,16 @@
     "question": "p1",
     "model_family": "glm_poisson",
     "stage_of_work": "candidate",
-    "git_commit": "3fa495d4dee084c711ab21a4fdeb7fd2b1a23609",
+    "git_commit": "01c6d6cbd0682827f83a89ceec37c079a01255d0",
     "git_sucio": "False",
-    "data_version": "7aa5e436d887",
-    "source_run_id": "fb967ed88f204de28ab74f38306fa6da",
-    "source_run_name": "p1_candidato_poisson_lineal",
+    "data_version": "7aa5e436d887+8460b856c7e8",
+    "source_run_id": "e40c098a073f422db3fb7c3193db9fbe",
+    "source_run_name": "p1_v2_reentrenado",
     "source_experiment": "mibici-equipo32",
     "lifecycle_scheme": "aliases",
-    "alias": "champion"
+    "alias": "champion",
+    "ab_test_run_id": "8d7250880a874a44ad62de62ac3ef706",
+    "ab_test_decision": "challenger"
   },
   "input_columns": [
     "dia_semana",
@@ -36,5 +38,5 @@
     "capacidad"
   ],
   "tracking_uri": "sqlite:///mlflow.db",
-  "exported_at": "2026-11-07T20:44:13+00:00"
+  "exported_at": "2026-11-16T02:16:09+00:00"
 }
