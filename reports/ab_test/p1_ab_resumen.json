@@ -1,0 +1,41 @@
+{
+  "modelo_registrado": "mibici-equipo32-p1-demanda",
+  "versiones": {
+    "champion": {
+      "version": "1",
+      "run_id": "fb967ed88f204de28ab74f38306fa6da",
+      "run_name": "p1_candidato_poisson_lineal"
+    },
+    "challenger": {
+      "version": "3",
+      "run_id": "e40c098a073f422db3fb7c3193db9fbe",
+      "run_name": "p1_v2_reentrenado"
+    }
+  },
+  "holdout": {
+    "inicio": "2026-08-01",
+    "fin_exclusivo": "2026-11-01",
+    "filas": 42520,
+    "estaciones": 472,
+    "filas_estaciones_nuevas": 8572
+  },
+  "comparacion": {
+    "mae_champion": 6.4203634632221025,
+    "mae_challenger": 6.070869979181572,
+    "delta_mae": -0.34949348404053016,
+    "delta_mae_pct": -0.05443515558621264,
+    "ic_inferior": -0.5060645615057212,
+    "ic_superior": -0.20149360341538045,
+    "nivel_confianza": 0.95,
+    "muestras_bootstrap": 2000,
+    "prob_challenger_mejor": 1.0,
+    "dias": 92,
+    "dias_challenger_mejor": 62,
+    "p_wilcoxon": 4.1966306194907866e-05
+  },
+  "decision": {
+    "version_vigente": "challenger",
+    "motivo": "El challenger reduce el MAE y todo el intervalo de confianza de la diferencia queda debajo de cero: la mejora es significativa y conviene promoverlo."
+  },
+  "regla": "promover el challenger solo si el IC de la diferencia de MAE queda debajo de 0"
+}
