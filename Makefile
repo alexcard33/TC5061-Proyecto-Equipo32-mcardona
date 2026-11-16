@@ -91,6 +91,11 @@ train: p1 p2 p3
 validacion:
 	$(PYTHON_INTERPRETER) -m mibici.validacion_datos
 	
+## Versión 2 de P1: reentrenamiento con datos de 2026 (requiere el servidor de MLflow)
+.PHONY: p1-v2
+p1-v2:
+	$(PYTHON_INTERPRETER) -m mibici.modeling.p1_reentrenamiento
+
 ## Drift de P1 con Evidently (requiere el entorno de requirements-monitoreo.txt)
 .PHONY: drift
 drift:

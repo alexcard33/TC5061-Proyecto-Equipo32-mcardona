@@ -48,16 +48,9 @@ from mibici.config import (
     ESTACIONES_ACTUAL_PARQUET,
     ESTACIONES_PARQUET,
     MONITOREO_QUESTION,
-    P1_FERIADOS,
-    P1_HORIZONTE_DIAS,
-    P1_LAGS_DIAS,
-    P1_MAX_DURATION_SECONDS,
-    P1_MIN_DURATION_SECONDS,
-    P1_TRAIN_START,
-    P1_VENTANAS_MEDIA_DIAS,
 )
-from mibici.dataset import leer_viajes
-from mibici.features import P1_FEATURES, p1_agregar_features, p1_construir_panel_diario
+from mibici.features import P1_FEATURES
+from mibici.panel_p1 import cargar_capacidad, cargar_viajes_p1, construir_features, cortar
 
 app = typer.Typer()
 
@@ -82,57 +75,7 @@ METRICAS_CALIDAD = [
 ]
 
 
-# Datos
-
-
-def cargar_viajes_p1() -> pd.DataFrame:
-    """Viajes de 2025 y 2026 con el mismo filtro de duración del entrenamiento de P1.
-
-    Es la misma regla de p1_regresion.cargar_viajes. No se importa de ahí porque ese
-    módulo necesita MLflow, que no se instala en este entorno.
-    """
-    viajes = leer_viajes(columnas=["inicio_viaje", "fin_viaje", "origen_id"])
-    duracion = (viajes["fin_viaje"] - viajes["inicio_viaje"]).dt.total_seconds()
-    return viajes.loc[duracion.between(P1_MIN_DURATION_SECONDS, P1_MAX_DURATION_SECONDS)].dropna()
-
-
-def cargar_capacidad(ruta: Path) -> pd.Series:
-    estaciones = pd.read_parquet(ruta, columns=["id", "dpcapacity"])
-    return estaciones.set_index("id")["dpcapacity"]
-
-
-def cortar(df: pd.DataFrame, inicio, fin) -> pd.DataFrame:
-    """Filas con fecha entre inicio (incluido) y fin (excluido)."""
-    fecha = df.index.get_level_values("fecha")
-    return df.loc[(fecha >= pd.Timestamp(inicio)) & (fecha < pd.Timestamp(fin))]
-
-
-def construir_features(
-    viajes: pd.DataFrame,
-    capacidad_ref: pd.Series,
-    capacidad_actual: pd.Series,
-    fin: str = AB_EVAL_END,
-) -> pd.DataFrame:
-    """Panel estación-día con las features de P1, desde enero de 2025 hasta fin.
-
-    El panel empieza en la misma fecha que el entrenamiento, así que las filas de 2025
-    salen idénticas a las que vio el modelo, y las de 2026 usan la historia continua desde
-    2025, como pasaría en producción.
-
-    La capacidad se toma del catálogo de cada periodo: el del entrenamiento para 2025 y la
-    nomenclatura más reciente para 2026, que ya trae estaciones nuevas y cambios.
-    """
-    panel = p1_construir_panel_diario(viajes, P1_TRAIN_START, fin)
-    df = p1_agregar_features(
-        panel, capacidad_ref, P1_FERIADOS, P1_LAGS_DIAS, P1_VENTANAS_MEDIA_DIAS, P1_HORIZONTE_DIAS
-    )
-    df["capacidad"] = df["capacidad"].astype("float64")
-
-    es_actual = df.index.get_level_values("fecha") >= pd.Timestamp(DRIFT_ACTUAL_START)
-    estaciones_2026 = df.index.get_level_values("estacion")[es_actual]
-    capacidad_2026 = estaciones_2026.map(capacidad_actual).fillna(0).to_numpy(dtype="float64")
-    df.loc[es_actual, "capacidad"] = capacidad_2026
-    return df
+# Datos (el panel continuo vive en mibici.panel_p1)
 
 
 def separar_periodos(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:

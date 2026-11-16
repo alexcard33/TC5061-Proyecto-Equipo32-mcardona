@@ -21,7 +21,6 @@ from mibici.features import P1_FEATURES  # noqa: E402
 from mibici.monitoreo_drift import (  # noqa: E402
     COLUMNAS,
     DRIFT_CATEGORICAS,
-    construir_features,
     composicion,
     cortar,
     drift_por_mes,
@@ -32,7 +31,6 @@ from mibici.monitoreo_drift import (  # noqa: E402
     resumen_por_variable,
     separar_periodos,
 )
-from tests.sinteticos import generar_viajes  # noqa: E402
 
 
 def _features_sinteticas(inicio, fin, n_estaciones=10, seed=SEED):
@@ -51,19 +49,6 @@ def _features_sinteticas(inicio, fin, n_estaciones=10, seed=SEED):
         if columna not in DRIFT_CATEGORICAS:
             df[columna] = rng.poisson(10, len(indice)).astype(float)
     return df[COLUMNAS]
-
-
-def test_construir_features_usa_la_capacidad_de_cada_periodo():
-    viajes = generar_viajes(n_estaciones=4, dias=90, inicio="2025-11-15")
-    capacidad_ref = pd.Series({i: 10 for i in range(1, 5)})
-    capacidad_actual = pd.Series({i: 25 for i in range(1, 5)})
-
-    df = construir_features(viajes, capacidad_ref, capacidad_actual, fin="2026-02-13")
-
-    fecha = df.index.get_level_values("fecha")
-    assert (df.loc[fecha < pd.Timestamp(DRIFT_ACTUAL_START), "capacidad"] == 10).all()
-    assert (df.loc[fecha >= pd.Timestamp(DRIFT_ACTUAL_START), "capacidad"] == 25).all()
-    assert set(P1_FEATURES) <= set(df.columns)
 
 
 def test_separar_periodos_respeta_fechas_y_quita_filas_sin_historia():
