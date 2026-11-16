@@ -10,6 +10,7 @@ Genera en reports/drift/:
     p1_drift_reporte.html       reporte de Evidently: drift por variable y calidad de datos
     p1_drift_reporte.json       el mismo reporte en JSON
     p1_drift_por_variable.csv   método, umbral, score y si hubo drift en cada variable
+    p1_drift_estaciones_comunes.csv   lo mismo, solo con estaciones que ya existían
     p1_drift_por_mes.csv        lo mismo para cada mes de 2026 contra la referencia
     p1_drift_por_mes.png        mapa de calor del drift mensual
     resumen.json                cifras principales para el reporte
@@ -63,6 +64,10 @@ app = typer.Typer()
 OBJETIVO = "viajes"
 COLUMNAS = P1_FEATURES + [OBJETIVO]
 DRIFT_CATEGORICAS = ["dia_semana", "fin_semana", "feriado"]
+
+# El mapa de calor corta la escala en este valor; si no, dias_activa (score cercano a 5)
+# hace que todas las demás celdas se vean blancas aunque tengan drift.
+VMAX_MAPA = 0.3
 
 # Métricas de Evidently que se copian al resumen como indicadores de calidad de datos.
 METRICAS_CALIDAD = [
@@ -215,11 +220,13 @@ def proporcion_drift(resultados: dict) -> dict:
 
 def resumen_calidad(resultados: dict) -> dict:
     """Indicadores de calidad del periodo actual y las pruebas de calidad que no pasaron."""
-    metricas = {
-        _tipo(m["config"]): m["value"]
-        for m in resultados["metrics"]
-        if _tipo(m["config"]) in METRICAS_CALIDAD
-    }
+    metricas = {}
+    for m in resultados["metrics"]:
+        tipo = _tipo(m["config"])
+        # Evidently repite algunas métricas por tipo de columna (ColumnCount trae el total,
+        # las numéricas, las categóricas, etc.). La primera es la del conjunto completo.
+        if tipo in METRICAS_CALIDAD:
+            metricas.setdefault(tipo, m["value"])
     fallidas = [
         p["name"]
         for p in resultados.get("tests", [])
@@ -227,6 +234,34 @@ def resumen_calidad(resultados: dict) -> dict:
         and _tipo(p["metric_config"]["params"]) not in ("ValueDrift", "DriftedColumnsCount")
     ]
     return {"metricas": metricas, "pruebas_fallidas": fallidas}
+
+
+def composicion(ref: pd.DataFrame, actual: pd.DataFrame) -> tuple[dict, pd.DataFrame]:
+    """Separa el cambio de demanda del cambio en la red de estaciones.
+
+    Repite la comparación solo con las estaciones que existen en ambos periodos. Si el
+    drift de viajes desaparece aquí, lo que cambió fue la red (estaciones nuevas con menos
+    demanda) y no el comportamiento de las estaciones que el modelo ya conocía.
+    """
+    comunes = set(ref.index.get_level_values("estacion")) & set(
+        actual.index.get_level_values("estacion")
+    )
+    ref_c = ref[ref.index.get_level_values("estacion").isin(comunes)]
+    es_comun = actual.index.get_level_values("estacion").isin(comunes)
+    act_c, act_nuevas = actual[es_comun], actual[~es_comun]
+
+    tabla = resumen_por_variable(generar_reporte(ref_c, act_c, calidad=False).dict())
+    resumen = {
+        "estaciones_comunes": len(comunes),
+        "media_viajes_comunes_referencia": round(float(ref_c[OBJETIVO].mean()), 3),
+        "media_viajes_comunes_actual": round(float(act_c[OBJETIVO].mean()), 3),
+        "media_viajes_estaciones_nuevas": (
+            round(float(act_nuevas[OBJETIVO].mean()), 3) if len(act_nuevas) else None
+        ),
+        "variables_con_drift_solo_comunes": tabla.loc[tabla["drift"], "variable"].tolist(),
+        "score_viajes_solo_comunes": float(tabla.set_index("variable").loc[OBJETIVO, "score"]),
+    }
+    return resumen, tabla
 
 
 def drift_por_mes(
@@ -248,6 +283,8 @@ def drift_por_mes(
         tabla = resumen_por_variable(resultados)
         tabla.insert(0, "mes", f"{mes:%Y-%m}")
         tabla["filas"] = len(actual)
+        # El score no tiene signo; la media dice si la demanda subió o bajó ese mes.
+        tabla["media_viajes_mes"] = round(float(actual[OBJETIVO].mean()), 3)
         tablas.append(tabla)
     return pd.concat(tablas, ignore_index=True)
 
@@ -258,7 +295,9 @@ def graficar_por_mes(por_mes: pd.DataFrame, ruta: Path) -> Path:
     drift = por_mes.pivot(index="variable", columns="mes", values="drift").reindex(COLUMNAS)
 
     fig, ax = plt.subplots(figsize=(scores.shape[1] + 3, 0.45 * scores.shape[0] + 1.5))
-    imagen = ax.imshow(scores.to_numpy(dtype="float64"), cmap="Reds", vmin=0, aspect="auto")
+    imagen = ax.imshow(
+        scores.to_numpy(dtype="float64"), cmap="Reds", vmin=0, vmax=VMAX_MAPA, aspect="auto"
+    )
     ax.set_xticks(range(scores.shape[1]), scores.columns, rotation=45, ha="right")
     ax.set_yticks(range(scores.shape[0]), scores.index)
     for i in range(scores.shape[0]):
@@ -266,11 +305,14 @@ def graficar_por_mes(por_mes: pd.DataFrame, ruta: Path) -> Path:
             valor = scores.iat[i, j]
             if pd.notna(valor):
                 marca = "*" if bool(drift.iat[i, j]) else ""
-                ax.text(j, i, f"{valor:.2f}{marca}", ha="center", va="center", fontsize=7)
-    fig.colorbar(imagen, ax=ax, label="Score de drift de Evidently")
+                color = "white" if valor > 0.6 * VMAX_MAPA else "black"
+                ax.text(
+                    j, i, f"{valor:.2f}{marca}", ha="center", va="center", fontsize=7, color=color
+                )
+    fig.colorbar(imagen, ax=ax, extend="max", label="Score de drift de Evidently")
     ax.set_title(
         "P1: drift de cada mes de 2026 contra la referencia (ene-sep 2025)\n"
-        "* Evidently detecta drift en esa variable"
+        f"* Evidently detecta drift. Escala cortada en {VMAX_MAPA} (el umbral es 0.1)"
     )
     fig.tight_layout()
     fig.savefig(ruta, dpi=150)
@@ -314,15 +356,27 @@ def main(
 
     estaciones_ref = set(ref.index.get_level_values("estacion"))
     estaciones_act = set(actual.index.get_level_values("estacion"))
+    nuevas = sorted(estaciones_act - estaciones_ref)
+    primera_salida = (
+        pd.Series(df.index.get_level_values("fecha"), index=df.index.get_level_values("estacion"))
+        .groupby(level=0)
+        .min()
+    )
+    aperturas = primera_salida.loc[nuevas].dt.strftime("%Y-%m").value_counts().sort_index()
+
+    resumen_composicion, tabla_comunes = composicion(ref, actual)
+    tabla_comunes.to_csv(DRIFT_DIR / "p1_drift_estaciones_comunes.csv", index=False)
     resumen = {
         "modelo": MONITOREO_QUESTION,
         "referencia": _describir(ref, DRIFT_REF_START, DRIFT_REF_END),
         "actual": _describir(actual, DRIFT_ACTUAL_START, DRIFT_ACTUAL_END),
         "filas_actual_sin_historia": filas_sin_historia,
-        "estaciones_nuevas": sorted(int(e) for e in estaciones_act - estaciones_ref),
+        "estaciones_nuevas": [int(e) for e in nuevas],
+        "estaciones_nuevas_por_mes_de_primera_salida": aperturas.to_dict(),
         "estaciones_sin_actividad": sorted(int(e) for e in estaciones_ref - estaciones_act),
         "drift": proporcion_drift(resultados),
         "variables_con_drift": por_variable.loc[por_variable["drift"], "variable"].tolist(),
+        "composicion": resumen_composicion,
         "calidad": resumen_calidad(resultados),
     }
 
@@ -332,6 +386,9 @@ def main(
         graficar_por_mes(mensual, DRIFT_DIR / "p1_drift_por_mes.png")
         resumen["proporcion_variables_con_drift_por_mes"] = (
             mensual.groupby("mes")["drift"].mean().round(3).to_dict()
+        )
+        resumen["media_viajes_por_mes"] = (
+            mensual.groupby("mes")["media_viajes_mes"].first().to_dict()
         )
 
     (DRIFT_DIR / "resumen.json").write_text(

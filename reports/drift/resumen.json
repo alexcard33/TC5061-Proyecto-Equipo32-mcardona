@@ -120,6 +120,14 @@
     518,
     519
   ],
+  "estaciones_nuevas_por_mes_de_primera_salida": {
+    "2025-10": 1,
+    "2025-12": 1,
+    "2026-05": 12,
+    "2026-06": 43,
+    "2026-07": 31,
+    "2026-08": 15
+  },
   "estaciones_sin_actividad": [],
   "drift": {
     "columnas_con_drift": 9,
@@ -136,10 +144,20 @@
     "lag_1",
     "viajes"
   ],
+  "composicion": {
+    "estaciones_comunes": 369,
+    "media_viajes_comunes_referencia": 33.025,
+    "media_viajes_comunes_actual": 31.128,
+    "media_viajes_estaciones_nuevas": 10.748,
+    "variables_con_drift_solo_comunes": [
+      "dias_activa"
+    ],
+    "score_viajes_solo_comunes": 0.06417423921017476
+  },
   "calidad": {
     "metricas": {
       "RowCount": 107733.0,
-      "ColumnCount": 0.0,
+      "ColumnCount": 13.0,
       "DuplicatedRowCount": 155.0,
       "AlmostConstantColumnsCount": 1.0,
       "EmptyRowsCount": 0.0,
@@ -212,5 +230,17 @@
     "2026-08": 0.692,
     "2026-09": 0.385,
     "2026-10": 0.769
+  },
+  "media_viajes_por_mes": {
+    "2026-01": 30.143,
+    "2026-02": 30.714,
+    "2026-03": 31.72,
+    "2026-04": 30.702,
+    "2026-05": 26.498,
+    "2026-06": 29.282,
+    "2026-07": 28.873,
+    "2026-08": 26.893,
+    "2026-09": 33.387,
+    "2026-10": 41.525
   }
 }

@@ -22,6 +22,7 @@ from mibici.monitoreo_drift import (  # noqa: E402
     COLUMNAS,
     DRIFT_CATEGORICAS,
     construir_features,
+    composicion,
     cortar,
     drift_por_mes,
     generar_reporte,
@@ -110,6 +111,7 @@ def test_resumen_calidad_detecta_faltantes():
     calidad = resumen_calidad(generar_reporte(ref, actual).dict())
 
     assert calidad["metricas"]["RowCount"] == len(actual)
+    assert calidad["metricas"]["ColumnCount"] == len(COLUMNAS)  # el total, no el de texto
     assert calidad["metricas"]["DatasetMissingValueCount"]["count"] == 20
     assert any("missing" in nombre.lower() for nombre in calidad["pruebas_fallidas"])
 
@@ -122,5 +124,23 @@ def test_drift_por_mes_y_grafica(tmp_path):
 
     assert sorted(por_mes["mes"].unique()) == ["2026-01", "2026-02"]
     assert len(por_mes) == 2 * len(COLUMNAS)
+    assert por_mes["media_viajes_mes"].notna().all()
     ruta = graficar_por_mes(por_mes, tmp_path / "por_mes.png")
     assert ruta.exists() and ruta.stat().st_size > 0
+
+
+def test_composicion_separa_estaciones_nuevas():
+    """Si solo cambian las estaciones nuevas, las comunes no deben mostrar drift."""
+    ref = _features_sinteticas(DRIFT_REF_START, DRIFT_REF_END, n_estaciones=10)
+    actual = _features_sinteticas(
+        DRIFT_ACTUAL_START, DRIFT_ACTUAL_END, n_estaciones=14, seed=SEED + 1
+    )
+    nuevas = actual.index.get_level_values("estacion") > 10
+    actual.loc[nuevas, "viajes"] = 0.0  # estaciones nuevas casi sin demanda
+
+    resumen, tabla = composicion(ref, actual)
+
+    assert resumen["estaciones_comunes"] == 10
+    assert resumen["media_viajes_estaciones_nuevas"] == 0
+    assert "viajes" not in resumen["variables_con_drift_solo_comunes"]
+    assert set(tabla["variable"]) == set(COLUMNAS)
