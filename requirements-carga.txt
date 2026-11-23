@@ -1,0 +1,15 @@
+# Entorno aislado para las pruebas de carga con Locust (Entregable 7).
+#
+# Locust trae sus propias versiones de Flask y gevent; para no mezclarlas con las de MLflow
+# del entorno principal, la prueba de carga y sus gráficas corren en su propio entorno:
+#
+#   py -3.12 -m venv .venv-carga
+#   source .venv-carga/Scripts/activate      (PowerShell: .venv-carga\Scripts\activate)
+#   python -m pip install -r requirements-carga.txt
+#   python carga/ejecutar_prueba.py --etiqueta w1
+#   python carga/graficas.py --etiqueta w1
+
+locust==2.47.0
+pandas==3.0.6
+numpy==2.5.4
+matplotlib==3.11.2
