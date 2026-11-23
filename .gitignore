@@ -234,6 +234,11 @@ reports/deepchecks/*.html
 !reports/drift/*.csv
 !reports/ab_test/*.csv
 
+# Entorno de las pruebas de carga con Locust; sus tablas sí se versionan porque son la
+# evidencia del reporte de operación y FinOps
+.venv-carga/
+!reports/carga/**/*.csv
+
 # Credenciales y secretos: nunca se versionan (plantilla en .env.example)
 .env.*
 !.env.example
