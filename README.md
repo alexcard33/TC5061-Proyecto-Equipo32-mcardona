@@ -1110,7 +1110,7 @@ El Entregable 8 se integró en ramas separadas, una por paso: `feature/drift-dat
 documentación.
 
 El Entregable 7 siguió el mismo esquema: `feature/docker-compose`, `feature/ci-cd`,
-`fix/ci-prueba-humo`, `feature/locust`, `feature/finops` y `docs/readme-operacion`.
+`fix/ci-prueba-humo`, `feature/locust`, `feature/finops`, `feature/readme-operacion` y `docs/reporte-operacion`.
 
 ## Equipo 32
 
