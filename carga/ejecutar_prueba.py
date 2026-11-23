@@ -16,6 +16,7 @@ API_WORKERS=1 y w2 con API_WORKERS=2, y luego compararlas en el análisis FinOps
 import argparse
 import csv
 import json
+import os
 from pathlib import Path
 import re
 import subprocess  # nosec B404 - solo se invocan docker y locust con argumentos fijos
@@ -118,7 +119,11 @@ def main() -> int:
     ]  # fmt: skip
     print("Ejecutando:", " ".join(comando), flush=True)
     try:
-        codigo = subprocess.run(comando, cwd=RAIZ, check=False).returncode  # nosec B603
+        # PYTHONUTF8 hace que Locust escriba sus CSV en UTF-8 también en Windows.
+        entorno = {**os.environ, "PYTHONUTF8": "1"}
+        codigo = subprocess.run(  # nosec B603
+            comando, cwd=RAIZ, env=entorno, check=False
+        ).returncode
     finally:
         time.sleep(args.intervalo * 2)  # y unas muestras después, para ver la recuperación
         detener.set()

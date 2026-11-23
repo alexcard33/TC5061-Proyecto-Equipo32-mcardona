@@ -36,8 +36,20 @@ DESCARTE_S = 10
 COLORES = {"mibici-api": "#2563eb", "mibici-mlflow": "#9ca3af"}
 
 
+def leer_csv(ruta: Path) -> pd.DataFrame:
+    """Lee un CSV de Locust sin importar con qué codificación lo escribió.
+
+    En Windows, Locust escribe sus CSV con la codificación del sistema (cp1252) y no en
+    UTF-8, así que el nombre "/predict [1 estación]" no se puede leer como UTF-8.
+    """
+    try:
+        return pd.read_csv(ruta, encoding="utf-8")
+    except UnicodeDecodeError:
+        return pd.read_csv(ruta, encoding="cp1252")
+
+
 def cargar_historial(carpeta: Path, duracion: int) -> pd.DataFrame:
-    h = pd.read_csv(carpeta / "locust_stats_history.csv")
+    h = leer_csv(carpeta / "locust_stats_history.csv")
     for col in h.columns:
         if col not in ("Type", "Name"):
             h[col] = pd.to_numeric(h[col], errors="coerce")
@@ -65,7 +77,7 @@ def cargar_historial(carpeta: Path, duracion: int) -> pd.DataFrame:
 
 
 def cargar_docker(carpeta: Path, t0: float, duracion: int) -> pd.DataFrame:
-    d = pd.read_csv(carpeta / "docker_stats.csv")
+    d = leer_csv(carpeta / "docker_stats.csv")
     d["t"] = d["timestamp"] - t0
     d["escalon"] = (d["t"] // duracion).where(d["t"] >= 0)
     d["t_en_escalon"] = d["t"] - d["escalon"] * duracion
