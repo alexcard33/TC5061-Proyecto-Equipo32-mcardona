@@ -1,0 +1,35 @@
+# Imagen del servidor de MLflow para el docker-compose.yml del proyecto.
+# Se construye aparte de la API porque el servidor necesita el paquete mlflow completo
+# (la API solo usa mlflow-skinny). La versión es la misma de requirements.txt.
+
+FROM docker.io/library/python:3.12-slim
+
+ARG MLFLOW_VERSION=3.17.2
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN pip install "mlflow==${MLFLOW_VERSION}"
+
+# Usuario sin privilegios y carpetas donde vivirán la base SQLite y los artefactos.
+# El volumen de Compose se monta en /mlflow y hereda estos permisos la primera vez.
+RUN useradd --create-home --uid 10001 mlflow \
+    && mkdir -p /mlflow/db /mlflow/artifacts \
+    && chown -R mlflow:mlflow /mlflow
+
+USER mlflow
+WORKDIR /mlflow
+
+EXPOSE 5000
+
+# --serve-artifacts hace que los clientes suban y bajen artefactos a través del propio
+# servidor, así la API no necesita acceso directo al disco donde se guardan.
+CMD ["mlflow", "server", \
+     "--backend-store-uri", "sqlite:////mlflow/db/mlflow.db", \
+     "--artifacts-destination", "/mlflow/artifacts", \
+     "--serve-artifacts", \
+     "--host", "0.0.0.0", \
+     "--port", "5000", \
+     "--workers", "1"]

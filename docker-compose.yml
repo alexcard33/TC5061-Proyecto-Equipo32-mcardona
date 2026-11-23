@@ -1,0 +1,100 @@
+# Orquestación del sistema MiBici (Equipo 32): API de inferencia + servidor de MLflow.
+#
+# Todo se levanta con un solo comando desde la raíz del repositorio:
+#   docker compose up -d --build        (o: podman compose up -d --build / podman-compose up -d --build)
+#
+# Las variables se toman del archivo .env si existe (plantilla en .env.example);
+# si no existe, se usan los valores por defecto que aparecen después de ":-".
+
+name: mibici-equipo32
+
+services:
+
+  # Servidor de tracking y Model Registry de MLflow. Guarda la base de datos y los
+  # artefactos en un volumen con nombre para que no se pierdan al recrear el contenedor.
+  mlflow:
+    build:
+      context: ./docker/mlflow
+      dockerfile: Containerfile
+      args:
+        MLFLOW_VERSION: ${MLFLOW_VERSION:-3.17.2}
+    image: mibici-mlflow:${MLFLOW_VERSION:-3.17.2}
+    container_name: mibici-mlflow
+    environment:
+      # Desde MLflow 3.5 el servidor rechaza peticiones cuyo Host no reconoce. Dentro de la
+      # red de Compose la API lo llama por su nombre de servicio (mlflow:5000), así que hay
+      # que permitirlo junto con localhost para el navegador.
+      MLFLOW_SERVER_ALLOWED_HOSTS: "mlflow,mlflow:*,localhost,localhost:*,127.0.0.1,127.0.0.1:*"
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - mibici-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "${MLFLOW_CPUS:-1.0}"
+          memory: ${MLFLOW_MEMORY:-1g}
+
+  # API REST (FastAPI) que sirve el modelo P1 de demanda. Usa el mismo Containerfile de la
+  # Semana 8. Por defecto carga el modelo empaquetado en la imagen (MODEL_SOURCE=local);
+  # con MODEL_SOURCE=registry lo descarga del MLflow de este mismo Compose.
+  api:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: ${API_IMAGE:-mibici-api:1.0}
+    container_name: mibici-api
+    environment:
+      MODEL_SOURCE: ${MODEL_SOURCE:-local}
+      MODEL_NAME: ${MODEL_NAME:-mibici-equipo32-p1-demanda}
+      MODEL_ALIAS: ${MODEL_ALIAS:-champion}
+      MODEL_VERSION: ${MODEL_VERSION:-}
+      # Se fija aquí y no se toma del .env porque dentro de la red el servidor se
+      # llama "mlflow", no 127.0.0.1 como cuando se trabaja en la máquina local.
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      # Uvicorn lee esta variable para decidir cuántos procesos levantar. Sirve para
+      # comparar desempeño y costo en las pruebas de carga sin reconstruir la imagen.
+      WEB_CONCURRENCY: ${API_WORKERS:-1}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - mibici-net
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Límites de recursos: dejan acotado el contenedor como si fuera una instancia de
+    # tamaño conocido, lo que facilita el cálculo del costo por inferencia (FinOps).
+    deploy:
+      resources:
+        limits:
+          cpus: "${API_CPUS:-2.0}"
+          memory: ${API_MEMORY:-2g}
+
+networks:
+  mibici-net:
+    name: mibici-net
+    driver: bridge
+
+volumes:
+  mlflow-data:
+    name: mibici-mlflow-data
