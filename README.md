@@ -17,17 +17,27 @@ El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
+<a target="_blank" href="https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml">
+    <img src="https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml/badge.svg" />
+</a>
 
-Última actualización: Entregable 8, monitoreo de drift con Evidently, reentrenamiento y A/B
-testing de P1; la API sirve ahora la versión 3 del modelo (ver
+Última actualización: Entregable 7, operación del sistema: orquestación con Docker Compose,
+pipeline de CI/CD con GitHub Actions, pruebas de carga con Locust y análisis FinOps (ver
+[Operación](#operación-docker-compose-cicd-pruebas-de-carga-y-finops-entregable-7)). La API sirve
+la versión 3 del modelo de P1 (ver
 [Monitoreo de drift, reentrenamiento y A/B testing](#monitoreo-de-drift-reentrenamiento-y-ab-testing-entregable-8)).
 
 ## Project Organization
 
 ```
+├── .github/workflows  <- Pipeline de CI/CD (ci-cd.yml)
 ├── .env.example       <- Plantilla de variables de entorno (sin valores; copiar a .env)
 ├── LICENSE            <- Open-source license if one is chosen
 ├── Containerfile      <- Imagen de la API de predicción (Docker o Podman)
+├── docker-compose.yml <- Orquestación de la API y el servidor de MLflow
+├── docker/mlflow      <- Imagen del servidor de MLflow para Compose
+├── carga              <- Escenario de Locust, ejecución con docker stats y gráficas
+├── finops             <- Cálculo del costo por inferencia
 ├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
 ├── README.md          <- The top-level README for developers using this project.
 ├── api                <- API REST con FastAPI que sirve el modelo de P1
@@ -55,6 +65,8 @@ testing de P1; la API sirve ahora la versión 3 del modelo (ver
 │
 ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
 │   ├── ab_test        <- Resultados del A/B testing de P1 (tablas, gráfica y decisión)
+│   ├── carga          <- Resultados de las pruebas de carga (w1 y w2) y sus gráficas
+│   ├── finops         <- Capacidad, costo por inferencia y escenarios de demanda
 │   ├── deepchecks     <- Resumen de la validación de datos (los HTML se regeneran)
 │   ├── drift          <- Reporte de drift de Evidently y sus resúmenes
 │   ├── reentrenamiento <- Métricas de validación de la versión 2 de P1
@@ -70,7 +82,9 @@ testing de P1; la API sirve ahora la versión 3 del modelo (ver
 │
 ├── requirements-api.txt <- Dependencias del servicio de la API (imagen del contenedor)
 │
-├── tests              <- Pruebas de PyTest: unitarias, reproducibilidad, seguridad y DeepChecks
+├── requirements-carga.txt <- Entorno aislado para Locust y las gráficas de carga
+│
+├── tests              <- Pruebas de PyTest: unitarias, API, reproducibilidad, seguridad y DeepChecks
 │
 ├── setup.cfg          <- Configuration file for flake8
 │
@@ -943,6 +957,142 @@ versión 3 en producción, la referencia del siguiente ciclo debe ser su ventana
 (ene 2025 – jun 2026). También conviene redefinir `dias_activa` como la antigüedad real de cada
 estación. El análisis completo está en el reporte de la entrega.
 
+## Operación: Docker Compose, CI/CD, pruebas de carga y FinOps (Entregable 7)
+
+Esta entrega convierte la API contenerizada en un sistema que se levanta con un solo comando, se
+prueba y despliega solo en cada push, se midió bajo carga y tiene un costo por inferencia
+estimado. Se desarrolló de forma individual sobre este repositorio, una rama por paso.
+
+### Arquitectura
+
+| Servicio | Imagen | Puerto | Qué hace |
+|----------|--------|--------|----------|
+| `api` | `mibici-api:1.0` (`Containerfile`) | 8000 | FastAPI con el modelo P1 `champion` empaquetado en la imagen |
+| `mlflow` | `mibici-mlflow:3.17.2` (`docker/mlflow/Containerfile`) | 5000 | Servidor de tracking y Model Registry |
+
+Configuración de `docker-compose.yml`:
+
+- Red propia `mibici-net` (bridge) y volumen `mibici-mlflow-data` para la base SQLite y los
+  artefactos de MLflow, que sobreviven a `docker compose down`.
+- Healthchecks en los dos servicios; la API espera a que MLflow esté sano
+  (`depends_on: condition: service_healthy`).
+- Límites de recursos (API: 2 CPU y 2 GiB; MLflow: 1 CPU y 1 GiB), `restart: unless-stopped` y
+  `no-new-privileges`.
+- Todo se parametriza con variables de entorno con valores por defecto; la plantilla está en
+  `.env.example`. Las más útiles: `API_WORKERS` (procesos de uvicorn), `MODEL_SOURCE`
+  (`local` o `registry`), `API_PORT` y `MLFLOW_PORT`.
+
+### Levantar el sistema
+
+```bash
+docker compose up -d --build      # o: make compose-up
+docker compose ps                 # esperar a que ambos digan "healthy"
+curl http://localhost:8000/health
+```
+
+- API y documentación interactiva: http://localhost:8000/docs
+- MLflow: http://localhost:5000
+- Detener: `docker compose down` (el volumen de MLflow se conserva; `down -v` lo borra).
+- Con Podman: `podman compose up -d --build` o `make compose-up COMPOSE="podman compose"`.
+- Para cambiar el número de workers sin reconstruir: `API_WORKERS=2 docker compose up -d`.
+
+### Pipeline de CI/CD
+
+[![CI/CD](https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml)
+
+El workflow `.github/workflows/ci-cd.yml` corre en cada push, en cada pull request hacia `main`
+y de forma manual (pestaña Actions, *Run workflow*).
+
+| Job | Qué hace | Cuándo |
+|-----|----------|--------|
+| Lint (ruff) | `ruff check` y `ruff format --check` | Siempre |
+| Pruebas (Python 3.12 y 3.13) | `pytest` completo en matriz; guarda el resultado JUnit como artefacto | Siempre |
+| Imagen y despliegue con Compose | Construye las dos imágenes, levanta el sistema con `docker compose up --wait` y hace una prueba de humo contra `/health`, `/model-info` y `/predict` | Si lint y pruebas pasan |
+| Publicar imagen en GHCR | Sube `ghcr.io/alexcard33/mibici-api` con las etiquetas `latest`, `1.0` y `sha-<commit>` | Solo en push a `main` |
+
+Optimizaciones: caché de pip, caché de capas de Docker en GitHub Actions (el job de imágenes
+bajó de 3 min 39 s a 1 min 24 s), cancelación de corridas viejas de la misma rama, permisos
+mínimos y reintentos en la prueba de humo. Python 3.11 no entra en la matriz porque
+`numpy==2.5.4` y `scipy==1.18.1` ya no publican paquetes para esa versión.
+
+Para correr localmente lo mismo que el pipeline:
+
+```bash
+ruff check && ruff format --check
+python -m pytest
+```
+
+La imagen publicada se descarga con `docker pull ghcr.io/alexcard33/mibici-api:latest` (si el
+paquete es privado, antes `docker login ghcr.io`).
+
+### Pruebas de carga con Locust
+
+El escenario (`carga/locustfile.py`) simula clientes del tablero de operación: cada usuario pide
+el pronóstico de una estación (peso 6), de un lote de 10 estaciones (peso 3) o `/health`
+(peso 1), con pausas de 0.5 a 1.5 s y observaciones aleatorias válidas. La carga sube por
+escalones de 5, 10, 25, 50, 100 y 150 usuarios, 60 s cada uno. Mientras corre, se registra
+`docker stats` cada 2 s.
+
+```bash
+# Entorno aparte (Locust trae sus propias versiones de Flask y gevent)
+py -3.12 -m venv .venv-carga
+source .venv-carga/Scripts/activate          # PowerShell: .venv-carga\Scripts\activate
+python -m pip install -r requirements-carga.txt
+
+# Con el sistema arriba
+python carga/ejecutar_prueba.py --etiqueta w1                    # API con 1 worker
+API_WORKERS=2 docker compose up -d
+python carga/ejecutar_prueba.py --etiqueta w2                    # API con 2 workers
+python carga/graficas.py --etiqueta w1 --comparar w2
+```
+
+Cada corrida deja en `reports/carga/<etiqueta>/` los CSV de Locust, `docker_stats.csv`, el
+reporte HTML de Locust, las gráficas (`latencia.png`, `rendimiento.png`, `errores.png`,
+`recursos.png`) y `resumen_escalones.csv`. La comparación queda en
+`reports/carga/comparacion_w1_vs_w2.png`. Las variables `CARGA_USUARIOS` y
+`CARGA_SEGUNDOS_ESCALON` cambian los escalones.
+
+Resultados (promedio de cada escalón, sin los primeros 10 s; un lote de 10 cuenta como 10
+inferencias):
+
+| Usuarios | w1 inferencias/s | w1 p95 (ms) | w1 CPU API | w2 inferencias/s | w2 p95 (ms) | w2 CPU API |
+|---------:|-----------------:|------------:|-----------:|-----------------:|------------:|-----------:|
+| 5 | 16.4 | 69 | 8% | 16.4 | 66 | 9% |
+| 25 | 84.0 | 89 | 31% | 85.3 | 74 | 30% |
+| 50 | 165.2 | 110 | 55% | 163.7 | 82 | 57% |
+| 100 | 306.6 | 460 | 98% | 334.3 | 120 | 114% |
+| 150 | 348.4 | 880 | 103% | 462.5 | 510 | 160% |
+
+Con 1 worker la API satura un núcleo a partir de 100 usuarios y la latencia se dispara; con 2
+workers sostiene el SLO (p95 ≤ 200 ms) hasta 100 usuarios y procesa 33% más con 150. No hubo
+errores en ninguna corrida. Un lote de 10 estaciones tarda lo mismo que una sola (p50 de 64 y
+65 ms con 2 workers).
+
+### Análisis FinOps
+
+```bash
+python finops/costo_inferencia.py     # con .venv-carga activo
+```
+
+Traduce las mediciones a costo con precios de referencia de AWS us-east-1 (definidos al inicio
+del script) y escribe en `reports/finops/` las tablas de capacidad, costo por opción de
+despliegue y escenarios de demanda, más dos gráficas.
+
+| Opción (capacidad al 100%, SLO p95 ≤ 200 ms) | USD por millón de inferencias |
+|---|---:|
+| 1 worker en EC2 c7i.large (configuración inicial) | 0.150 |
+| 2 workers en EC2 c7i.large | 0.074 |
+| 2 workers + Savings Plan de 1 año | 0.054 |
+| 2 workers en Spot | 0.024 |
+| 2 workers en Fargate ARM, sin MLflow | 0.066 |
+
+Conclusiones: usar los 2 vCPU con 2 workers reduce el costo por inferencia a la mitad; agrupar
+estaciones en lotes reduce el costo por petición; y con la demanda real de MiBici (un tablero
+que se refresca cada 15 min, unas 0.5 inferencias/s) una instancia siempre encendida cuesta
+unos 46 USD por millón, por lo que la optimización principal es apagar cuando no hay uso
+(tarea programada o predicción por lotes) y sacar a MLflow del despliegue de servicio. El
+análisis completo está en el reporte de la entrega.
+
 ## Git y control de versiones
 
 Los datos de MiBici, modelos serializados, base de datos de MLflow, artefactos de MLflow y resultados generados por P3 se excluyen mediante `.gitignore`.
@@ -958,6 +1108,9 @@ Para P3 se utiliza la rama `feature/p3-clustering`.
 El Entregable 8 se integró en ramas separadas, una por paso: `feature/drift-datos`,
 `feature/evidently`, `feature/modelo-v2`, `feature/ab-test`, `feature/promocion-v2` y la de esta
 documentación.
+
+El Entregable 7 siguió el mismo esquema: `feature/docker-compose`, `feature/ci-cd`,
+`fix/ci-prueba-humo`, `feature/locust`, `feature/finops` y `docs/readme-operacion`.
 
 ## Equipo 32
 
