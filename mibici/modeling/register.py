@@ -34,7 +34,14 @@ from mibici.config import (
 
 app = typer.Typer()
 
-TAGS_LINAJE = ("question", "model_family", "stage_of_work", "git_commit", "git_sucio", "data_version")
+TAGS_LINAJE = (
+    "question",
+    "model_family",
+    "stage_of_work",
+    "git_commit",
+    "git_sucio",
+    "data_version",
+)
 
 
 def buscar_run(client: MlflowClient, experiment_id: str, question: str, run_name: str):
@@ -107,7 +114,10 @@ def registrar_pregunta(client: MlflowClient, experiment_id: str, question: str) 
         )
     asegurar_registered_model(client, question, cfg)
 
-    for alias, run_name in ((ALIAS_PRODUCCION, cfg["champion"]), (ALIAS_CHALLENGER, cfg.get("challenger"))):
+    for alias, run_name in (
+        (ALIAS_PRODUCCION, cfg["champion"]),
+        (ALIAS_CHALLENGER, cfg.get("challenger")),
+    ):
         if not run_name:
             continue
         run = buscar_run(client, experiment_id, question, run_name)

@@ -84,7 +84,6 @@ SKOPS_TRUSTED = [
 ]
 
 
-
 def cargar_viajes(ruta: Path) -> pd.DataFrame:
     """Lee los viajes y deja fuera los de menos de 1 minuto o más de 24 horas."""
     viajes = pd.read_parquet(
@@ -199,7 +198,9 @@ def tags_run(familia: str, etapa: str, contexto: dict) -> dict:
     }
 
 
-def entrenar_y_registrar(nombre_run, etapa, familia, modelo, params_modelo, datos, contexto) -> dict:
+def entrenar_y_registrar(
+    nombre_run, etapa, familia, modelo, params_modelo, datos, contexto
+) -> dict:
     """Entrena, elige el umbral en validación, evalúa los tres conjuntos y sube todo a MLflow."""
     (x_train, y_train, t_train), (x_val, y_val, t_val), (x_test, y_test, t_test) = datos
 
@@ -337,8 +338,11 @@ def construir_modelo(nombre: str, params: dict):
         p = {**P2_HGB_PARAMS, **params}
         params_log = {"modelo": "HistGradientBoostingClassifier", **p}
         return (
-            construir_candidato(p), "candidate", "gradient_boosting",
-            P2_MLFLOW_CANDIDATE_RUN_NAME, params_log,
+            construir_candidato(p),
+            "candidate",
+            "gradient_boosting",
+            P2_MLFLOW_CANDIDATE_RUN_NAME,
+            params_log,
         )
     if nombre == "rf":
         p = {**P2_RF_PARAMS, **params}
@@ -385,7 +389,11 @@ def ejecutar_busqueda(run_name, datos, contexto) -> dict:
             with mlflow.start_run(run_name=f"{run_name}_{i:02d}", nested=True) as hijo:
                 mlflow.set_tags(tags_run("gradient_boosting", "search", contexto))
                 mlflow.log_params(
-                    {"modelo": "HistGradientBoostingClassifier", **params, "umbral_decision": round(umbral, 4)}
+                    {
+                        "modelo": "HistGradientBoostingClassifier",
+                        **params,
+                        "umbral_decision": round(umbral, 4),
+                    }
                 )
                 mlflow.log_metrics(metricas)
             resultados.append({"run_id": hijo.info.run_id, **combo, **metricas})
@@ -401,7 +409,9 @@ def ejecutar_busqueda(run_name, datos, contexto) -> dict:
         )
         mejor = tabla.iloc[0]
         mlflow.log_params({f"mejor_{k}": mejor[k] for k in claves})
-        mlflow.log_metrics({"mejor_val_f1": mejor["val_f1"], "mejor_val_pr_auc": mejor["val_pr_auc"]})
+        mlflow.log_metrics(
+            {"mejor_val_f1": mejor["val_f1"], "mejor_val_pr_auc": mejor["val_pr_auc"]}
+        )
         mlflow.set_tag("mejor_run_hijo", mejor["run_id"])
         ruta = P2_OUTPUT_DIR / f"{run_name}_resultados.csv"
         tabla.to_csv(ruta, index=False)
@@ -435,7 +445,9 @@ def ejecutar(
     nombres = MODELOS if model == "all" else (model,)
     for nombre in nombres:
         if nombre != "search":
-            construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+            construir_modelo(
+                nombre, params
+            )  # valida nombre e hiperparámetros antes de cargar datos
 
     logger.info(f"Iniciando pipeline P2 | modelos={', '.join(nombres)} | params={params}")
     datos, contexto = preparar_datos(viajes_path)
@@ -460,13 +472,16 @@ def ejecutar(
 @app.command()
 def main(
     model: str = typer.Option("all", help="baseline, hgb, rf, search o all."),
-    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    params_json: str = typer.Option(
+        "{}", help="Hiperparámetros en JSON (se combinan con config.py)."
+    ),
     run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
     viajes_path: Path = VIAJES_PARQUET,
     experiment_name: str = P2_MLFLOW_EXPERIMENT,
 ):
     """Pipeline de P2: datos, partición, entrenamiento y registro en MLflow."""
     ejecutar(model, json.loads(params_json), run_name or None, viajes_path, experiment_name)
+
 
 if __name__ == "__main__":
     app()

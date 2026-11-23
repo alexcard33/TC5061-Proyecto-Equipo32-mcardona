@@ -194,7 +194,7 @@ def comparar(
         "nivel_confianza": nivel,
         "muestras_bootstrap": muestras,
         "prob_challenger_mejor": float((deltas < 0).mean()),
-        "dias": int(len(diario)),
+        "dias": len(diario),
         "dias_challenger_mejor": int((diferencia_dia < 0).sum()),
         "p_wilcoxon": p_wilcoxon,
     }
@@ -290,11 +290,13 @@ def tabla_markdown(
     nivel = int(comparacion["nivel_confianza"] * 100)
     lineas += [
         "",
-        f"Diferencia de MAE (challenger menos champion): {comparacion['delta_mae']:.3f} "
-        f"({comparacion['delta_mae_pct']:+.1%}), IC {nivel}% "
-        f"[{comparacion['ic_inferior']:.3f}, {comparacion['ic_superior']:.3f}], "
-        f"p de Wilcoxon {comparacion['p_wilcoxon']:.4f}, el challenger gana "
-        f"{comparacion['dias_challenger_mejor']} de {comparacion['dias']} días.",
+        (
+            f"Diferencia de MAE (challenger menos champion): {comparacion['delta_mae']:.3f} "
+            f"({comparacion['delta_mae_pct']:+.1%}), IC {nivel}% "
+            f"[{comparacion['ic_inferior']:.3f}, {comparacion['ic_superior']:.3f}], "
+            f"p de Wilcoxon {comparacion['p_wilcoxon']:.4f}, el challenger gana "
+            f"{comparacion['dias_challenger_mejor']} de {comparacion['dias']} días."
+        ),
         "",
         f"Decisión: queda como vigente el {decision['version_vigente']}. {decision['motivo']}",
     ]

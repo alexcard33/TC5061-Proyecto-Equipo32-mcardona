@@ -110,7 +110,6 @@ class BaselineNaiveSemanal:
         return x[self.columna].to_numpy(dtype="float64")
 
 
-
 def cargar_viajes(ruta: Path) -> pd.DataFrame:
     """Lee los viajes procesados y aplica el filtro de duración de P1."""
     viajes = pd.read_parquet(ruta, columns=["inicio_viaje", "fin_viaje", "origen_id"])
@@ -147,7 +146,9 @@ def construir_lineal(params: dict) -> Pipeline:
                         ("dia", OneHotEncoder(handle_unknown="ignore"), ["dia_semana"]),
                         (
                             "conteos",
-                            Pipeline([("log", FunctionTransformer(np.log1p)), ("esc", StandardScaler())]),
+                            Pipeline(
+                                [("log", FunctionTransformer(np.log1p)), ("esc", StandardScaler())]
+                            ),
                             conteos,
                         ),
                         ("num", StandardScaler(), otras),
@@ -172,7 +173,9 @@ def construir_rf(params: dict) -> RandomForestRegressor:
 def evaluar(y: pd.Series, pred: np.ndarray, prefijo: str) -> dict:
     """Métricas de regresión a nivel estación-día y de total diario del sistema."""
     pred = np.clip(pred, 0, None)
-    total = pd.DataFrame({"y": y.to_numpy(), "p": pred}, index=y.index).groupby(level="fecha").sum()
+    total = (
+        pd.DataFrame({"y": y.to_numpy(), "p": pred}, index=y.index).groupby(level="fecha").sum()
+    )
     return {
         f"{prefijo}_mae": mean_absolute_error(y, pred),
         f"{prefijo}_rmse": float(np.sqrt(mean_squared_error(y, pred))),
@@ -183,7 +186,9 @@ def evaluar(y: pd.Series, pred: np.ndarray, prefijo: str) -> dict:
     }
 
 
-def guardar_graficas(nombre: str, test: pd.DataFrame, pred: np.ndarray, base: np.ndarray) -> list[Path]:
+def guardar_graficas(
+    nombre: str, test: pd.DataFrame, pred: np.ndarray, base: np.ndarray
+) -> list[Path]:
     """Serie del total diario en TEST y MAE por día de la semana (modelo vs. baseline)."""
     df = test[["viajes", "dia_semana"]].copy()
     df["pred"] = np.clip(pred, 0, None)
@@ -193,7 +198,9 @@ def guardar_graficas(nombre: str, test: pd.DataFrame, pred: np.ndarray, base: np
     ruta_serie = P1_OUTPUT_DIR / f"{nombre}_total_diario_test.png"
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(total.index, total["viajes"], color="#1f2937", lw=2, label="Real")
-    ax.plot(total.index, total["base"], color="#9ca3af", lw=1.5, ls="--", label="Baseline (t-7 días)")
+    ax.plot(
+        total.index, total["base"], color="#9ca3af", lw=1.5, ls="--", label="Baseline (t-7 días)"
+    )
     if nombre != P1_MLFLOW_BASELINE_RUN_NAME:
         ax.plot(total.index, total["pred"], color="#2563eb", lw=1.8, label=nombre)
     ax.set_title("P1 · Viajes totales por día en TEST (nov-dic 2025)")
@@ -249,8 +256,12 @@ def guardar_importancias(modelo, x_val: pd.DataFrame, y_val: pd.Series, nombre: 
     """Importancia por permutación en VAL (muestra fija de 40 mil filas)."""
     muestra = x_val.sample(min(40_000, len(x_val)), random_state=SEED)
     res = permutation_importance(
-        modelo, muestra, y_val.loc[muestra.index], scoring="neg_mean_absolute_error",
-        n_repeats=3, random_state=SEED,
+        modelo,
+        muestra,
+        y_val.loc[muestra.index],
+        scoring="neg_mean_absolute_error",
+        n_repeats=3,
+        random_state=SEED,
     )
     imp = pd.Series(res.importances_mean, index=x_val.columns).sort_values()
     ruta_csv = P1_OUTPUT_DIR / f"{nombre}_importancia_permutacion.csv"
@@ -288,7 +299,9 @@ def entrenar_y_registrar(
     (x_train, y_train), (x_val, y_val), (x_test, y_test), test = datos
 
     modelo.fit(x_train, y_train)
-    pred = {n: modelo.predict(x) for n, x in (("train", x_train), ("val", x_val), ("test", x_test))}
+    pred = {
+        n: modelo.predict(x) for n, x in (("train", x_train), ("val", x_val), ("test", x_test))
+    }
     metricas = {
         **evaluar(y_train, pred["train"], "train"),
         **evaluar(y_val, pred["val"], "val"),
@@ -409,11 +422,23 @@ def construir_modelo(nombre: str, params: dict):
             "transformacion_conteos": "log1p",
             "escalado": "StandardScaler",
         }
-        return construir_lineal(p), "candidate", "glm_poisson", P1_MLFLOW_LINEAL_RUN_NAME, params_log
+        return (
+            construir_lineal(p),
+            "candidate",
+            "glm_poisson",
+            P1_MLFLOW_LINEAL_RUN_NAME,
+            params_log,
+        )
     if nombre == "hgb":
         p = {**P1_HGB_PARAMS, **params}
         params_log = {"modelo": "HistGradientBoostingRegressor", **p}
-        return construir_hgb(p), "candidate", "gradient_boosting", P1_MLFLOW_CANDIDATE_RUN_NAME, params_log
+        return (
+            construir_hgb(p),
+            "candidate",
+            "gradient_boosting",
+            P1_MLFLOW_CANDIDATE_RUN_NAME,
+            params_log,
+        )
     if nombre == "rf":
         p = {**P1_RF_PARAMS, **params}
         params_log = {"modelo": "RandomForestRegressor", **p}
@@ -463,7 +488,9 @@ def ejecutar_busqueda(run_name, datos, contexto) -> dict:
         tabla = pd.DataFrame(resultados).sort_values("val_mae").reset_index(drop=True)
         mejor = tabla.iloc[0]
         mlflow.log_params({f"mejor_{k}": mejor[k] for k in claves})
-        mlflow.log_metrics({"mejor_val_mae": mejor["val_mae"], "mejor_train_mae": mejor["train_mae"]})
+        mlflow.log_metrics(
+            {"mejor_val_mae": mejor["val_mae"], "mejor_train_mae": mejor["train_mae"]}
+        )
         mlflow.set_tag("mejor_run_hijo", mejor["run_id"])
         ruta = P1_OUTPUT_DIR / f"{run_name}_resultados.csv"
         tabla.to_csv(ruta, index=False)
@@ -497,7 +524,9 @@ def ejecutar(
     nombres = MODELOS if model == "all" else (model,)
     for nombre in nombres:
         if nombre != "search":
-            construir_modelo(nombre, params)  # valida nombre e hiperparámetros antes de cargar datos
+            construir_modelo(
+                nombre, params
+            )  # valida nombre e hiperparámetros antes de cargar datos
 
     logger.info(f"Iniciando pipeline P1 | modelos={', '.join(nombres)} | params={params}")
     datos, base_test, contexto = preparar_datos(viajes_path)
@@ -522,12 +551,15 @@ def ejecutar(
 @app.command()
 def main(
     model: str = typer.Option("all", help="baseline, poisson, hgb, rf, search o all."),
-    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    params_json: str = typer.Option(
+        "{}", help="Hiperparámetros en JSON (se combinan con config.py)."
+    ),
     run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
     viajes_path: Path = VIAJES_PARQUET,
     experiment_name: str = P1_MLFLOW_EXPERIMENT,
 ):
     ejecutar(model, json.loads(params_json), run_name or None, viajes_path, experiment_name)
+
 
 if __name__ == "__main__":
     app()

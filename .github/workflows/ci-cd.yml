@@ -1,0 +1,222 @@
+# Pipeline de CI/CD del proyecto MiBici (Equipo 32).
+#
+# En cada push y en cada pull request hacia main:
+#   1. lint: revisa estilo y errores comunes con ruff.
+#   2. pruebas: corre pytest en Python 3.12 y 3.13 (matriz), incluidas las pruebas de la API.
+#   3. imagen-y-despliegue: construye las imágenes, levanta el sistema completo con
+#      docker compose y le hace una prueba de humo (health, model-info y una predicción).
+#   4. publicar: solo en main, sube la imagen de la API a GitHub Container Registry.
+
+name: CI/CD
+
+on:
+  push:
+    branches: ["**"]
+    # Cambios que solo tocan documentación no necesitan correr todo el pipeline.
+    paths-ignore: ["**.md", "docs/**", "notebooks/**", "references/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Si llegan dos pushes seguidos a la misma rama, se cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  MLFLOW_VERSION: "3.17.2"
+  API_IMAGE: mibici-api:1.0
+
+jobs:
+
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar ruff
+        run: python -m pip install ruff==0.17.1
+
+      - name: Revisar errores
+        run: ruff check --output-format=github
+
+      - name: Revisar formato
+        run: ruff format --check
+
+  pruebas:
+    name: Pruebas (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      # Se dejan terminar ambas versiones aunque una falle, para ver el panorama completo.
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # test_seguridad.py busca secretos en todo el historial, no solo en el último commit.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          # Guarda en caché los paquetes descargados; se invalida cuando cambia requirements.txt.
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependencias
+        run: python -m pip install -r requirements.txt
+
+      - name: Correr pytest
+        run: python -m pytest --junitxml=reports/junit-py${{ matrix.python-version }}.xml
+
+      - name: Guardar resultados de las pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-py${{ matrix.python-version }}
+          path: reports/junit-py${{ matrix.python-version }}.xml
+          retention-days: 14
+
+  imagen-y-despliegue:
+    name: Imagen y despliegue con Compose
+    needs: [lint, pruebas]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Las imágenes se construyen con buildx para aprovechar la caché de GitHub Actions:
+      # si requirements-api.txt no cambia, la capa del pip install no se vuelve a construir.
+      - name: Construir imagen de la API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          tags: ${{ env.API_IMAGE }}
+          load: true
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      - name: Construir imagen de MLflow
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/mlflow
+          file: docker/mlflow/Containerfile
+          build-args: MLFLOW_VERSION=${{ env.MLFLOW_VERSION }}
+          tags: mibici-mlflow:${{ env.MLFLOW_VERSION }}
+          load: true
+          cache-from: type=gha,scope=mlflow
+          cache-to: type=gha,scope=mlflow,mode=max
+
+      - name: Validar docker-compose.yml
+        run: docker compose config --quiet
+
+      # --wait no regresa hasta que los healthchecks de ambos servicios pasan;
+      # si alguno no queda sano dentro del tiempo límite, el paso falla.
+      - name: Levantar el sistema
+        run: docker compose up -d --no-build --wait --wait-timeout 180
+
+      - name: Estado de los servicios
+        run: docker compose ps
+
+      - name: Prueba de humo
+        run: |
+          set -euo pipefail
+
+          echo "MLflow:"
+          curl -fsS http://localhost:5000/health
+          echo
+
+          echo "API /health:"
+          curl -fsS http://localhost:8000/health | tee health.json
+          echo
+          jq -e '.modelo_cargado == true' health.json
+
+          echo "API /model-info:"
+          curl -fsS http://localhost:8000/model-info | jq .
+
+          echo "API /predict:"
+          curl -fsS -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            --data @tests/fixtures/predict_ejemplo.json | tee prediccion.json | jq .
+          jq -e '.n_instancias == (.predicciones | length)' prediccion.json
+
+          {
+            echo "### Despliegue con Compose"
+            echo
+            echo '```'
+            docker compose ps
+            echo '```'
+            echo
+            echo "### Predicción de prueba"
+            echo
+            echo '```json'
+            jq . prediccion.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Logs de los servicios
+        if: failure()
+        run: docker compose logs
+
+      - name: Bajar el sistema
+        if: always()
+        run: docker compose down -v
+
+  publicar:
+    name: Publicar imagen en GHCR
+    needs: imagen-y-despliegue
+    # Solo se publica lo que ya está integrado en main, nunca desde ramas o pull requests.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Iniciar sesión en GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Etiquetas: latest, la versión de la API y el SHA corto del commit, para poder
+      # saber exactamente qué código hay dentro de cada imagen publicada.
+      - name: Definir etiquetas
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/mibici-api
+          tags: |
+            type=raw,value=latest
+            type=raw,value=1.0
+            type=sha,prefix=sha-
+
+      - name: Construir y publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api

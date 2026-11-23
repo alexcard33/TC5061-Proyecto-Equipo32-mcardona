@@ -118,19 +118,11 @@ def asignar_perfiles(
     features: pd.DataFrame,
     labels: pd.Series,
 ) -> dict[int, str]:
-    perfiles = (
-        features[P3_MODEL_FEATURES]
-        .assign(cluster=labels)
-        .groupby("cluster")
-        .mean()
-    )
+    perfiles = features[P3_MODEL_FEATURES].assign(cluster=labels).groupby("cluster").mean()
 
     disponibles = {int(x) for x in perfiles.index}
 
-    intensidad = (
-        perfiles["salidas_dia"]
-        + perfiles["llegadas_dia"]
-    )
+    intensidad = perfiles["salidas_dia"] + perfiles["llegadas_dia"]
 
     cluster_alta = int(intensidad.idxmax())
     disponibles.remove(cluster_alta)
@@ -201,10 +193,7 @@ def generar_pca(
             linewidths=0.4,
         )
 
-    centroides = (
-        df.groupby("perfil")[["PC1", "PC2"]]
-        .mean()
-    )
+    centroides = df.groupby("perfil")[["PC1", "PC2"]].mean()
 
     for perfil, fila in centroides.iterrows():
         ax.scatter(
@@ -220,20 +209,11 @@ def generar_pca(
     ax.axhline(0, linewidth=0.6, alpha=0.4)
     ax.axvline(0, linewidth=0.6, alpha=0.4)
 
-    ax.set_xlabel(
-        f"PC1 — patrón temporal "
-        f"({pca.explained_variance_ratio_[0]:.1%})"
-    )
+    ax.set_xlabel(f"PC1 — patrón temporal ({pca.explained_variance_ratio_[0]:.1%})")
 
-    ax.set_ylabel(
-        f"PC2 — intensidad de uso "
-        f"({pca.explained_variance_ratio_[1]:.1%})"
-    )
+    ax.set_ylabel(f"PC2 — intensidad de uso ({pca.explained_variance_ratio_[1]:.1%})")
 
-    ax.set_title(
-        "Perfiles de uso de estaciones MiBici\n"
-        "Proyección PCA de TRAIN por grupo"
-    )
+    ax.set_title("Perfiles de uso de estaciones MiBici\nProyección PCA de TRAIN por grupo")
 
     ax.legend(
         title="Perfil",
@@ -283,9 +263,7 @@ def generar_mapa(
     capas = {}
 
     for perfil in COLORES_PERFIL:
-        n = int(
-            (resultado_geo["perfil"] == perfil).sum()
-        )
+        n = int((resultado_geo["perfil"] == perfil).sum())
 
         capas[perfil] = folium.FeatureGroup(
             name=f"{perfil} ({n})",
@@ -307,17 +285,17 @@ def generar_mapa(
 
         popup = f"""
         <div style="width:320px">
-        <b>{fila['name']}</b><br><br>
-        <b>Estación:</b> {int(fila['estacion'])}<br>
+        <b>{fila["name"]}</b><br><br>
+        <b>Estación:</b> {int(fila["estacion"])}<br>
         <b>Perfil:</b> {perfil}<br>
-        <b>Cluster:</b> {int(fila['cluster'])}<br>
+        <b>Cluster:</b> {int(fila["cluster"])}<br>
         <b>Estado en TEST:</b> {estado}<br><br>
-        <b>Salidas/día:</b> {fila['salidas_dia']:.1f}<br>
-        <b>Llegadas/día:</b> {fila['llegadas_dia']:.1f}<br>
-        <b>Balance:</b> {fila['balance_relativo']:.3f}<br>
-        <b>Fin de semana:</b> {fila['share_fin_semana']:.1%}<br><br>
-        <b>Entropía destinos:</b> {fila['entropia_destinos']:.3f}<br>
-        <b>Entropía orígenes:</b> {fila['entropia_origenes']:.3f}
+        <b>Salidas/día:</b> {fila["salidas_dia"]:.1f}<br>
+        <b>Llegadas/día:</b> {fila["llegadas_dia"]:.1f}<br>
+        <b>Balance:</b> {fila["balance_relativo"]:.3f}<br>
+        <b>Fin de semana:</b> {fila["share_fin_semana"]:.1%}<br><br>
+        <b>Entropía destinos:</b> {fila["entropia_destinos"]:.3f}<br>
+        <b>Entropía orígenes:</b> {fila["entropia_origenes"]:.3f}
         </div>
         """
 
@@ -336,10 +314,7 @@ def generar_mapa(
                 popup,
                 max_width=350,
             ),
-            tooltip=(
-                f"{fila['name']} | "
-                f"{perfil} | {estado}"
-            ),
+            tooltip=(f"{fila['name']} | {perfil} | {estado}"),
         ).add_to(capas[perfil])
 
     folium.LayerControl(
@@ -378,12 +353,8 @@ def preparar_datos(
     viajes = pd.read_parquet(viajes_path)
     estaciones = pd.read_parquet(estaciones_path)
 
-    viajes["inicio_viaje"] = pd.to_datetime(
-        viajes["inicio_viaje"]
-    )
-    viajes["fin_viaje"] = pd.to_datetime(
-        viajes["fin_viaje"]
-    )
+    viajes["inicio_viaje"] = pd.to_datetime(viajes["inicio_viaje"])
+    viajes["fin_viaje"] = pd.to_datetime(viajes["fin_viaje"])
 
     viajes = p3_filtrar_viajes(
         viajes,
@@ -402,27 +373,21 @@ def preparar_datos(
         & (viajes["fin_viaje"] < pd.Timestamp(P3_TEST_END))
     ].copy()
 
-    features_train, _ = (
-        p3_construir_features(
-            train,
-            fin_periodo=pd.Timestamp(P3_TRAIN_END),
-            max_inactivity_days=P3_MAX_INACTIVITY_DAYS,
-            min_history_days=P3_MIN_HISTORY_DAYS,
-        )
+    features_train, _ = p3_construir_features(
+        train,
+        fin_periodo=pd.Timestamp(P3_TRAIN_END),
+        max_inactivity_days=P3_MAX_INACTIVITY_DAYS,
+        min_history_days=P3_MIN_HISTORY_DAYS,
     )
 
-    features_test, _ = (
-        p3_construir_features(
-            test,
-            fin_periodo=pd.Timestamp(P3_TEST_END) - pd.Timedelta(seconds=1),
-            max_inactivity_days=P3_MAX_INACTIVITY_DAYS,
-            min_history_days=P3_MIN_HISTORY_DAYS,
-        )
+    features_test, _ = p3_construir_features(
+        test,
+        fin_periodo=pd.Timestamp(P3_TEST_END) - pd.Timedelta(seconds=1),
+        max_inactivity_days=P3_MAX_INACTIVITY_DAYS,
+        min_history_days=P3_MIN_HISTORY_DAYS,
     )
 
-    train_reducido = train.loc[
-        train["inicio_viaje"] >= pd.Timestamp(P3_REDUCED_START)
-    ].copy()
+    train_reducido = train.loc[train["inicio_viaje"] >= pd.Timestamp(P3_REDUCED_START)].copy()
 
     features_reducido, _ = p3_construir_features(
         train_reducido,
@@ -431,18 +396,14 @@ def preparar_datos(
         min_history_days=P3_MIN_HISTORY_DAYS,
     )
 
-    x_train, scaler = preparar_features(
-        features_train
-    )
+    x_train, scaler = preparar_features(features_train)
 
     x_test, _ = preparar_features(
         features_test,
         scaler=scaler,
     )
 
-    x_reducido, _ = preparar_features(
-        features_reducido
-    )
+    x_reducido, _ = preparar_features(features_reducido)
 
     return {
         "viajes": viajes,
@@ -529,7 +490,9 @@ def correr_comparacion(modelo, etapa, params_log, run_name, d, git_commit, data_
     return metricas
 
 
-def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit, data_version) -> dict:
+def correr_candidato(
+    crear_modelo, familia, params_log, run_name, d, git_commit, data_version
+) -> dict:
     """Candidata de 4 grupos: perfiles, estabilidad TRAIN-TEST e histórica, mapa, PCA y modelo."""
     viajes = d["viajes"]
     estaciones = d["estaciones"]
@@ -567,30 +530,19 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
         labels_train,
     )
 
-    comunes_test = (
-        x_train.index
-        .intersection(x_test.index)
-    )
+    comunes_test = x_train.index.intersection(x_test.index)
 
-    comunes_historico = (
-        x_train.index
-        .intersection(x_reducido.index)
-    )
+    comunes_historico = x_train.index.intersection(x_reducido.index)
 
     comparacion_test = pd.DataFrame(
         {
-            "cluster_train": labels_train.loc[
-                comunes_test
-            ],
-            "cluster_test": labels_test.loc[
-                comunes_test
-            ],
+            "cluster_train": labels_train.loc[comunes_test],
+            "cluster_test": labels_test.loc[comunes_test],
         }
     )
 
     comparacion_test["cambio"] = (
-        comparacion_test["cluster_train"]
-        != comparacion_test["cluster_test"]
+        comparacion_test["cluster_train"] != comparacion_test["cluster_test"]
     )
 
     entropias = p3_agregar_entropias(
@@ -600,21 +552,13 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
 
     resultado = features_train.copy()
 
-    resultado["cluster"] = (
-        labels_train.astype(int)
-    )
+    resultado["cluster"] = labels_train.astype(int)
 
-    resultado["perfil"] = (
-        resultado["cluster"].map(perfiles)
-    )
+    resultado["perfil"] = resultado["cluster"].map(perfiles)
 
-    resultado["entropia_destinos"] = (
-        entropias["entropia_destinos"]
-    )
+    resultado["entropia_destinos"] = entropias["entropia_destinos"]
 
-    resultado["entropia_origenes"] = (
-        entropias["entropia_origenes"]
-    )
+    resultado["entropia_origenes"] = entropias["entropia_origenes"]
 
     estado_test = pd.Series(
         "no_comparable",
@@ -631,8 +575,7 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
     resultado["estado_test"] = estado_test
 
     resultado_geo = (
-        resultado
-        .reset_index()
+        resultado.reset_index()
         .merge(
             estaciones[
                 [
@@ -651,8 +594,7 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
     )
 
     metricas_cluster = (
-        resultado
-        .reset_index()
+        resultado.reset_index()
         .groupby(
             ["cluster", "perfil"],
             as_index=False,
@@ -689,62 +631,41 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
         )
     )
 
-    estabilidad_cluster = (
-        comparacion_test
-        .groupby("cluster_train")
-        .agg(
-            comparables_test=(
-                "cambio",
-                "size",
-            ),
-            cambios_test=(
-                "cambio",
-                "sum",
-            ),
-        )
+    estabilidad_cluster = comparacion_test.groupby("cluster_train").agg(
+        comparables_test=(
+            "cambio",
+            "size",
+        ),
+        cambios_test=(
+            "cambio",
+            "sum",
+        ),
     )
 
     estabilidad_cluster["estables_test"] = (
-        estabilidad_cluster["comparables_test"]
-        - estabilidad_cluster["cambios_test"]
+        estabilidad_cluster["comparables_test"] - estabilidad_cluster["cambios_test"]
     )
 
     estabilidad_cluster["estabilidad_pct"] = (
-        estabilidad_cluster["estables_test"]
-        / estabilidad_cluster["comparables_test"]
-        * 100
+        estabilidad_cluster["estables_test"] / estabilidad_cluster["comparables_test"] * 100
     )
 
-    tabla_maestra = (
-        metricas_cluster
-        .merge(
-            estabilidad_cluster,
-            left_on="cluster",
-            right_index=True,
-            how="left",
-        )
-        .sort_values("cluster")
-    )
+    tabla_maestra = metricas_cluster.merge(
+        estabilidad_cluster,
+        left_on="cluster",
+        right_index=True,
+        how="left",
+    ).sort_values("cluster")
 
-    tabla_path = (
-        P3_TABLE_PATH
-    )
+    tabla_path = P3_TABLE_PATH
 
-    geo_path = (
-        P3_GEO_PATH
-    )
+    geo_path = P3_GEO_PATH
 
-    mapa_path = (
-        P3_MAP_PATH
-    )
+    mapa_path = P3_MAP_PATH
 
-    pca_path = (
-        P3_PCA_PATH
-    )
+    pca_path = P3_PCA_PATH
 
-    model_path = (
-        P3_MODEL_PATH
-    )
+    model_path = P3_MODEL_PATH
 
     tabla_maestra.to_csv(
         tabla_path,
@@ -814,8 +735,7 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
             labels_test.loc[comunes_test],
         ),
         "estabilidad_exacta_test": (
-            comparacion_test["cluster_train"]
-            == comparacion_test["cluster_test"]
+            comparacion_test["cluster_train"] == comparacion_test["cluster_test"]
         ).mean(),
         "ari_historico_reducido": adjusted_rand_score(
             labels_train.loc[comunes_historico],
@@ -828,18 +748,14 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
         "estaciones_train": len(x_train),
         "estaciones_test": len(x_test),
         "estaciones_comunes": len(comunes_test),
-        "pca_varianza_acumulada": (
-            pca.explained_variance_ratio_.sum()
-        ),
+        "pca_varianza_acumulada": (pca.explained_variance_ratio_.sum()),
     }
 
     if not hasattr(modelo, "predict"):
         # TEST se reagrupó: la coincidencia exacta de etiquetas no tiene sentido
         metricas.pop("estabilidad_exacta_test")
 
-    with mlflow.start_run(
-        run_name=run_name
-    ) as run:
+    with mlflow.start_run(run_name=run_name) as run:
         mlflow.log_params(
             {
                 **params_log,
@@ -853,12 +769,7 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
                 "train_inicio": P3_TRAIN_START[:10],
                 "train_fin": P3_TRAIN_END[:10],
                 "test_inicio": P3_TEST_START[:10],
-                "test_fin": str(
-                    (
-                        pd.Timestamp(P3_TEST_END)
-                        - pd.Timedelta(seconds=1)
-                    ).date()
-                ),
+                "test_fin": str((pd.Timestamp(P3_TEST_END) - pd.Timedelta(seconds=1)).date()),
                 "transformacion_intensidad": "log1p",
                 "scaler": "StandardScaler",
             }
@@ -892,48 +803,23 @@ def correr_candidato(crear_modelo, familia, params_log, run_name, d, git_commit,
 
         run_id = run.info.run_id
 
-    logger.info(
-        f"Viajes limpios: {len(viajes):,}"
-    )
+    logger.info(f"Viajes limpios: {len(viajes):,}")
 
-    logger.info(
-        f"Train: {len(train):,} | "
-        f"Test: {len(test):,}"
-    )
+    logger.info(f"Train: {len(train):,} | Test: {len(test):,}")
 
-    logger.info(
-        f"Estaciones TRAIN: {len(x_train)} | "
-        f"TEST: {len(x_test)}"
-    )
+    logger.info(f"Estaciones TRAIN: {len(x_train)} | TEST: {len(x_test)}")
 
-    logger.info(
-        f"Perfiles: {perfiles}"
-    )
+    logger.info(f"Perfiles: {perfiles}")
 
-    logger.info(
-        f"Silhouette TRAIN: "
-        f"{metricas['train_silhouette']:.4f}"
-    )
+    logger.info(f"Silhouette TRAIN: {metricas['train_silhouette']:.4f}")
 
-    logger.info(
-        f"Silhouette TEST: "
-        f"{metricas['test_silhouette']:.4f}"
-    )
+    logger.info(f"Silhouette TEST: {metricas['test_silhouette']:.4f}")
 
-    logger.info(
-        f"ARI TRAIN-TEST: "
-        f"{metricas['ari_train_test']:.4f}"
-    )
+    logger.info(f"ARI TRAIN-TEST: {metricas['ari_train_test']:.4f}")
 
-    logger.info(
-        f"ARI histórico reducido: "
-        f"{metricas['ari_historico_reducido']:.4f}"
-    )
+    logger.info(f"ARI histórico reducido: {metricas['ari_historico_reducido']:.4f}")
 
-    logger.success(
-        f"Pipeline P3 terminado | "
-        f"MLflow run: {run_id}"
-    )
+    logger.success(f"Pipeline P3 terminado | MLflow run: {run_id}")
 
     return metricas
 
@@ -947,7 +833,11 @@ def config_candidato(nombre: str, params: dict):
     elif nombre == "agglomerative":
         p = {**P3_AGGLO_PARAMS, **params}
         k = p["n_clusters"]
-        familia, clase, run_default = "hierarchical", AgglomerativeClustering, P3_MLFLOW_CANDIDATE_RUN_NAME
+        familia, clase, run_default = (
+            "hierarchical",
+            AgglomerativeClustering,
+            P3_MLFLOW_CANDIDATE_RUN_NAME,
+        )
     elif nombre == "gmm":
         p = {"random_state": SEED, **P3_GMM_PARAMS, **params}
         k = p["n_components"]
@@ -976,7 +866,8 @@ def ejecutar_busqueda(run_name, d, git_commit, data_version) -> dict:
     comunes = x_train.index.intersection(x_reducido.index)
     claves = list(P3_KMEANS_SEARCH_GRID)
     combinaciones = [
-        dict(zip(claves, valores)) for valores in itertools.product(*P3_KMEANS_SEARCH_GRID.values())
+        dict(zip(claves, valores))
+        for valores in itertools.product(*P3_KMEANS_SEARCH_GRID.values())
     ]
     resultados = []
     with mlflow.start_run(run_name=run_name):
@@ -1075,8 +966,13 @@ def ejecutar(
             params_log = {"modelo": "KMeans", "k": p["n_clusters"]}
             params_log.update({c: v for c, v in p.items() if c != "n_clusters"})
             resultados[nombre] = correr_comparacion(
-                KMeans(**p), "baseline", params_log,
-                run_name or P3_MLFLOW_BASELINE_RUN_NAME, d, git_commit, data_version,
+                KMeans(**p),
+                "baseline",
+                params_log,
+                run_name or P3_MLFLOW_BASELINE_RUN_NAME,
+                d,
+                git_commit,
+                data_version,
             )
         elif nombre == "search":
             resultados[nombre] = ejecutar_busqueda(
@@ -1085,8 +981,13 @@ def ejecutar(
         else:
             familia, crear_modelo, params_log, run_default = candidatos[nombre]
             resultados[nombre] = correr_candidato(
-                crear_modelo, familia, params_log, run_name or run_default,
-                d, git_commit, data_version,
+                crear_modelo,
+                familia,
+                params_log,
+                run_name or run_default,
+                d,
+                git_commit,
+                data_version,
             )
     logger.success("Pipeline P3 terminado")
     return resultados
@@ -1095,16 +996,23 @@ def ejecutar(
 @app.command()
 def main(
     model: str = typer.Option("all", help="baseline, kmeans, agglomerative, gmm, search o all."),
-    params_json: str = typer.Option("{}", help="Hiperparámetros en JSON (se combinan con config.py)."),
+    params_json: str = typer.Option(
+        "{}", help="Hiperparámetros en JSON (se combinan con config.py)."
+    ),
     run_name: str = typer.Option("", help="Nombre del run; vacío usa el de config.py."),
     viajes_path: Path = VIAJES_PARQUET,
     estaciones_path: Path = ESTACIONES_PARQUET,
     experiment_name: str = P3_MLFLOW_EXPERIMENT,
 ):
     ejecutar(
-        model, json.loads(params_json), run_name or None,
-        viajes_path, estaciones_path, experiment_name,
+        model,
+        json.loads(params_json),
+        run_name or None,
+        viajes_path,
+        estaciones_path,
+        experiment_name,
     )
+
 
 if __name__ == "__main__":
     app()

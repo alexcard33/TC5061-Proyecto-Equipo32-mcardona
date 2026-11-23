@@ -73,7 +73,8 @@ def parsear_params(texto: str) -> dict:
 def main(
     question: str = typer.Option(..., help="Pregunta a entrenar: p1, p2 o p3."),
     model: str = typer.Option(
-        "default", help="Modelo de la pregunta; 'default' toma el de config.py y 'all' entrena todos."
+        "default",
+        help="Modelo de la pregunta; 'default' toma el de config.py y 'all' entrena todos.",
     ),
     params: str = typer.Option(
         "none", help="Hiperparámetros clave=valor separados por comas; se combinan con config.py."

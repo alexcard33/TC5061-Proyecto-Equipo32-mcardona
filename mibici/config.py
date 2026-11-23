@@ -51,7 +51,7 @@ VIAJES_URLS = {
     "2025_09": "https://www.mibici.net/site/assets/files/113216/datos_abiertos_2025_09.csv",
     "2025_10": "https://www.mibici.net/site/assets/files/115104/datos_abiertos_2025_10.csv",
     "2025_11": "https://www.mibici.net/site/assets/files/116773/datos_abiertos_2025_11.csv",
-    "2025_12": "https://www.mibici.net/site/assets/files/118153/datos_abiertos_2025_12.csv"
+    "2025_12": "https://www.mibici.net/site/assets/files/118153/datos_abiertos_2025_12.csv",
 }
 
 NOMENCLATURA_URL = "https://www.mibici.net/site/assets/files/1118/nomenclatura_2026_09.csv"
@@ -101,7 +101,9 @@ P3_MAX_DURATION_SECONDS = 86400
 
 P3_MLFLOW_EXPERIMENT = MLFLOW_EXPERIMENT
 P3_MLFLOW_RUN_NAME = "p3_kmeans_final"
-P3_QUESTION = "Agrupar estaciones MiBici según sus patrones de uso y evaluar su estabilidad temporal."
+P3_QUESTION = (
+    "Agrupar estaciones MiBici según sus patrones de uso y evaluar su estabilidad temporal."
+)
 
 P3_OUTPUT_DIR = REPORTS_DIR / "p3"
 P3_PCA_PATH = FIGURES_DIR / "pca_p3_mibici_final.png"

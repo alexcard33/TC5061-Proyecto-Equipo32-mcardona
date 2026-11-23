@@ -61,7 +61,11 @@ def exportar(
     if destino.exists():
         shutil.rmtree(destino)
     destino.parent.mkdir(parents=True, exist_ok=True)
-    tmp = Path(mlflow.artifacts.download_artifacts(artifact_uri=uri, dst_path=str(destino.parent / f".tmp_{question}")))
+    tmp = Path(
+        mlflow.artifacts.download_artifacts(
+            artifact_uri=uri, dst_path=str(destino.parent / f".tmp_{question}")
+        )
+    )
     shutil.move(str(tmp), str(destino))
     shutil.rmtree(destino.parent / f".tmp_{question}", ignore_errors=True)
 
@@ -82,7 +86,9 @@ def exportar(
         "tracking_uri": tracking_uri,
         "exported_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    (destino / "model_info.json").write_text(json.dumps(info, indent=2, ensure_ascii=False), encoding="utf-8")
+    (destino / "model_info.json").write_text(
+        json.dumps(info, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     logger.success(f"Modelo {nombre} v{mv.version} exportado a {destino}")
     return destino
 
