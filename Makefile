@@ -130,6 +130,29 @@ image-build:
 image-run:
 	$(ENGINE) run --rm --name mibici-api -p 8000:8000 $(IMAGE)
 
+# Orquestación con Compose. Por defecto usa Docker Compose; con Podman: make compose-up COMPOSE="podman compose"
+COMPOSE ?= docker compose
+
+## Levanta la API y MLflow con un solo comando (construye las imágenes si cambiaron)
+.PHONY: compose-up
+compose-up:
+	$(COMPOSE) up -d --build
+
+## Estado de los servicios y de sus healthchecks
+.PHONY: compose-ps
+compose-ps:
+	$(COMPOSE) ps
+
+## Logs de los servicios en vivo (Ctrl+C para salir)
+.PHONY: compose-logs
+compose-logs:
+	$(COMPOSE) logs -f
+
+## Detiene y elimina los contenedores (los datos de MLflow se conservan en el volumen)
+.PHONY: compose-down
+compose-down:
+	$(COMPOSE) down
+
 ## Pruebas unitarias, de reproducibilidad y de seguridad
 .PHONY: test
 test:
