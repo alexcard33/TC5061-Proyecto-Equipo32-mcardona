@@ -130,8 +130,8 @@ image-build:
 image-run:
 	$(ENGINE) run --rm --name mibici-api -p 8000:8000 $(IMAGE)
 
-# Orquestación con Compose. Si tu Podman no trae "podman compose", usa: make compose-up COMPOSE=podman-compose
-COMPOSE ?= $(ENGINE) compose
+# Orquestación con Compose. Por defecto usa Docker Compose; con Podman: make compose-up COMPOSE="podman compose"
+COMPOSE ?= docker compose
 
 ## Levanta la API y MLflow con un solo comando (construye las imágenes si cambiaron)
 .PHONY: compose-up
