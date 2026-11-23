@@ -1,0 +1,46 @@
+{
+  "instancias": [
+    {
+      "dia_semana": 5,
+      "fin_semana": 1,
+      "feriado": 0,
+      "lag_1": 62,
+      "lag_2": 75,
+      "lag_7": 31,
+      "lag_14": 40,
+      "media_7d": 54.0,
+      "media_28d": 54.43,
+      "media_mismo_dia_4sem": 35.0,
+      "dias_activa": 304,
+      "capacidad": 15
+    },
+    {
+      "dia_semana": 2,
+      "fin_semana": 0,
+      "feriado": 0,
+      "lag_1": 48,
+      "lag_2": 51,
+      "lag_7": 34,
+      "lag_14": 53,
+      "media_7d": 41.14,
+      "media_28d": 45.39,
+      "media_mismo_dia_4sem": 48.75,
+      "dias_activa": 546,
+      "capacidad": 15
+    },
+    {
+      "dia_semana": 3,
+      "fin_semana": 0,
+      "feriado": 0,
+      "lag_1": 50,
+      "lag_2": 48,
+      "lag_7": 52,
+      "lag_14": 56,
+      "media_7d": 43.43,
+      "media_28d": 45.14,
+      "media_mismo_dia_4sem": 48.0,
+      "dias_activa": 547,
+      "capacidad": 15
+    }
+  ]
+}

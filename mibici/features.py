@@ -49,14 +49,9 @@ def p3_filtrar_viajes(
     """
     df = viajes.copy()
 
-    duracion = (
-        df["fin_viaje"] - df["inicio_viaje"]
-    ).dt.total_seconds()
+    duracion = (df["fin_viaje"] - df["inicio_viaje"]).dt.total_seconds()
 
-    return df.loc[
-        (duracion >= min_duration_seconds)
-        & (duracion <= max_duration_seconds)
-    ].copy()
+    return df.loc[(duracion >= min_duration_seconds) & (duracion <= max_duration_seconds)].copy()
 
 
 def p3_construir_features(
@@ -81,18 +76,14 @@ def p3_construir_features(
     Solo usa los viajes recibidos, por lo que se llama por separado para TRAIN
     y TEST. Devuelve ``(features, cobertura)``. (P3 – Gerardo Conde.)
     """
-    salidas_ev = viajes[
-        ["inicio_viaje", "origen_id"]
-    ].rename(
+    salidas_ev = viajes[["inicio_viaje", "origen_id"]].rename(
         columns={
             "inicio_viaje": "fecha",
             "origen_id": "estacion",
         }
     )
 
-    llegadas_ev = viajes[
-        ["fin_viaje", "destino_id"]
-    ].rename(
+    llegadas_ev = viajes[["fin_viaje", "destino_id"]].rename(
         columns={
             "fin_viaje": "fecha",
             "destino_id": "estacion",
@@ -107,8 +98,7 @@ def p3_construir_features(
     eventos["dia"] = eventos["fecha"].dt.normalize()
 
     cobertura = (
-        eventos
-        .groupby("estacion")
+        eventos.groupby("estacion")
         .agg(
             primera_actividad=("fecha", "min"),
             ultima_actividad=("fecha", "max"),
@@ -119,24 +109,13 @@ def p3_construir_features(
     )
 
     cobertura["dias_historial"] = (
-        cobertura["ultima_actividad"]
-        - cobertura["primera_actividad"]
+        cobertura["ultima_actividad"] - cobertura["primera_actividad"]
     ).dt.days + 1
 
-    cobertura["dias_sin_actividad"] = (
-        fin_periodo
-        - cobertura["ultima_actividad"]
-    ).dt.days
+    cobertura["dias_sin_actividad"] = (fin_periodo - cobertura["ultima_actividad"]).dt.days
 
-    cobertura["eligible_p3"] = (
-        (
-            cobertura["dias_sin_actividad"]
-            < max_inactivity_days
-        )
-        & (
-            cobertura["dias_historial"]
-            >= min_history_days
-        )
+    cobertura["eligible_p3"] = (cobertura["dias_sin_actividad"] < max_inactivity_days) & (
+        cobertura["dias_historial"] >= min_history_days
     )
 
     elegibles = cobertura.loc[
@@ -145,13 +124,10 @@ def p3_construir_features(
     ].copy()
 
     if elegibles.empty:
-        raise ValueError(
-            "No hay estaciones elegibles para P3."
-        )
+        raise ValueError("No hay estaciones elegibles para P3.")
 
     elegibles["dias_exposicion"] = (
-        fin_periodo.normalize()
-        - elegibles["primera_actividad"].dt.normalize()
+        fin_periodo.normalize() - elegibles["primera_actividad"].dt.normalize()
     ).dt.days + 1
 
     ids = set(elegibles["estacion"])
@@ -186,35 +162,20 @@ def p3_construir_features(
             default="noche",
         )
 
-        datos["fin_semana"] = (
-            datos["fecha"].dt.dayofweek >= 5
-        )
+        datos["fin_semana"] = datos["fecha"].dt.dayofweek >= 5
 
     base = elegibles.set_index("estacion")
 
-    base["salidas"] = (
-        salidas.groupby("estacion").size()
-    )
+    base["salidas"] = salidas.groupby("estacion").size()
 
-    base["llegadas"] = (
-        llegadas.groupby("estacion").size()
-    )
+    base["llegadas"] = llegadas.groupby("estacion").size()
 
-    base["salidas_fin_semana"] = (
-        salidas.loc[salidas["fin_semana"]]
-        .groupby("estacion")
-        .size()
-    )
+    base["salidas_fin_semana"] = salidas.loc[salidas["fin_semana"]].groupby("estacion").size()
 
-    base["llegadas_fin_semana"] = (
-        llegadas.loc[llegadas["fin_semana"]]
-        .groupby("estacion")
-        .size()
-    )
+    base["llegadas_fin_semana"] = llegadas.loc[llegadas["fin_semana"]].groupby("estacion").size()
 
     bloques_salida = (
-        salidas
-        .groupby(["estacion", "bloque"])
+        salidas.groupby(["estacion", "bloque"])
         .size()
         .unstack(fill_value=0)
         .reindex(
@@ -229,8 +190,7 @@ def p3_construir_features(
     )
 
     bloques_llegada = (
-        llegadas
-        .groupby(["estacion", "bloque"])
+        llegadas.groupby(["estacion", "bloque"])
         .size()
         .unstack(fill_value=0)
         .reindex(
@@ -244,42 +204,24 @@ def p3_construir_features(
         )
     )
 
-    base = base.join(
-        bloques_salida.add_prefix("salida_")
-    )
+    base = base.join(bloques_salida.add_prefix("salida_"))
 
-    base = base.join(
-        bloques_llegada.add_prefix("llegada_")
-    )
+    base = base.join(bloques_llegada.add_prefix("llegada_"))
 
     base = base.fillna(0)
 
     features = pd.DataFrame(index=base.index)
 
-    features["salidas_dia"] = (
-        base["salidas"]
-        / base["dias_exposicion"]
+    features["salidas_dia"] = base["salidas"] / base["dias_exposicion"]
+
+    features["llegadas_dia"] = base["llegadas"] / base["dias_exposicion"]
+
+    features["balance_relativo"] = (base["llegadas"] - base["salidas"]) / (
+        base["llegadas"] + base["salidas"]
     )
 
-    features["llegadas_dia"] = (
-        base["llegadas"]
-        / base["dias_exposicion"]
-    )
-
-    features["balance_relativo"] = (
-        (base["llegadas"] - base["salidas"])
-        / (base["llegadas"] + base["salidas"])
-    )
-
-    features["share_fin_semana"] = (
-        (
-            base["salidas_fin_semana"]
-            + base["llegadas_fin_semana"]
-        )
-        / (
-            base["salidas"]
-            + base["llegadas"]
-        )
+    features["share_fin_semana"] = (base["salidas_fin_semana"] + base["llegadas_fin_semana"]) / (
+        base["salidas"] + base["llegadas"]
     )
 
     for bloque in [
@@ -288,15 +230,9 @@ def p3_construir_features(
         "tarde",
         "noche",
     ]:
-        features[f"salida_{bloque}_share"] = (
-            base[f"salida_{bloque}"]
-            / base["salidas"]
-        )
+        features[f"salida_{bloque}_share"] = base[f"salida_{bloque}"] / base["salidas"]
 
-        features[f"llegada_{bloque}_share"] = (
-            base[f"llegada_{bloque}"]
-            / base["llegadas"]
-        )
+        features[f"llegada_{bloque}_share"] = base[f"llegada_{bloque}"] / base["llegadas"]
 
     return (
         features[P3_MODEL_FEATURES].fillna(0),
@@ -336,32 +272,20 @@ def p3_agregar_entropias(
     ids = set(resultado.index)
 
     ent_destinos = (
-        viajes.loc[
-            viajes["origen_id"].isin(ids)
-        ]
+        viajes.loc[viajes["origen_id"].isin(ids)]
         .groupby("origen_id")["destino_id"]
         .apply(p3_entropia_normalizada)
     )
 
     ent_origenes = (
-        viajes.loc[
-            viajes["destino_id"].isin(ids)
-        ]
+        viajes.loc[viajes["destino_id"].isin(ids)]
         .groupby("destino_id")["origen_id"]
         .apply(p3_entropia_normalizada)
     )
 
-    resultado["entropia_destinos"] = (
-        resultado.index.to_series()
-        .map(ent_destinos)
-        .fillna(0)
-    )
+    resultado["entropia_destinos"] = resultado.index.to_series().map(ent_destinos).fillna(0)
 
-    resultado["entropia_origenes"] = (
-        resultado.index.to_series()
-        .map(ent_origenes)
-        .fillna(0)
-    )
+    resultado["entropia_origenes"] = resultado.index.to_series().map(ent_origenes).fillna(0)
 
     return resultado
 
@@ -520,9 +444,7 @@ def p2_historico_pasado(train: pd.DataFrame) -> pd.DataFrame:
     etiquetas ya se conocían en ``t``. (P2 – Manuel Cardona.)
     """
     df = train.copy()
-    grupos = df.groupby(
-        [df.index.get_level_values("estacion"), df["hora_dia"], df["fin_semana"]]
-    )
+    grupos = df.groupby([df.index.get_level_values("estacion"), df["hora_dia"], df["fin_semana"]])
     previas = grupos.cumcount()
     for origen, destino in (
         ("riesgo", "tasa_riesgo_hist"),

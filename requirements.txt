@@ -20,6 +20,11 @@ joblib==1.6.0
 # Pruebas y notebook de exploración
 pytest==9.1.1
 
+# API: para probarla sin contenedor (tests/test_api.py), mismas versiones que requirements-api.txt
+fastapi==0.162.2
+httpx==0.28.1  # lo usa el TestClient de FastAPI
+skops==0.16.0  # formato con el que está serializado el modelo servido
+
 # Seguridad: análisis estático del código y auditoría de dependencias
 bandit==1.9.4
 pip-audit==2.10.1

@@ -16,6 +16,7 @@ la ingesta elimina el pseudónimo, el género y el año de nacimiento.
 import json
 from pathlib import Path
 import shutil
+
 # bandit B404/B603: solo se ejecuta git (ruta absoluta) con argumentos fijos.
 import subprocess  # nosec B404
 import sys
@@ -27,6 +28,8 @@ import pandas as pd
 from mibici.config import MANIFEST_PATH, PROJ_ROOT
 
 ETAPAS = ("baseline", "search", "candidate")
+
+
 def obtener_git_commit() -> tuple[str, bool]:
     """Commit actual y si hay cambios sin commitear (tags ``git_commit`` y ``git_sucio``).
 
