@@ -1,0 +1,27 @@
+# Fin de línea del repositorio.
+# En el repo todo el texto se guarda con LF, sin importar si alguien trabaja en Windows,
+# Linux o Mac. Así el Makefile, el Containerfile y los scripts de shell funcionan igual
+# dentro de los contenedores y en GitHub Actions, y git deja de marcar archivos como
+# modificados solo porque cambió el fin de línea.
+* text=auto eol=lf
+
+# Los scripts de Windows sí necesitan CRLF para que cmd y PowerShell los lean bien.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Archivos binarios: git no debe tocarlos ni intentar mostrar diferencias de texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.mp4 binary
+*.skops binary
+*.pkl binary
+*.joblib binary
+*.parquet binary
+*.db binary

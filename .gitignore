@@ -246,3 +246,6 @@ reports/deepchecks/*.html
 *.key
 *.p12
 credentials*.json
+
+# Resultados de pytest que deja el pipeline de CI (se suben como artifact, no al repo)
+reports/junit-*.xml
