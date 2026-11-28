@@ -24,6 +24,9 @@ MAX_VIAJES_DIA = 5_000  # tope de cordura: ninguna estación MiBici se acerca a 
 MAX_DIAS_ACTIVA = 20_000
 MAX_CAPACIDAD = 200
 MAX_INSTANCIAS = 1_000
+MODEL_CARD_URL = (
+    "https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/blob/main/MODEL_CARD.md"
+)
 
 Binario = Annotated[int, Field(ge=0, le=1)]
 Viajes = Annotated[float, Field(ge=0, le=MAX_VIAJES_DIA, allow_inf_nan=False)]
@@ -125,3 +128,6 @@ class ModelInfoResponse(BaseModel):
     model_uri: str
     fuente: str
     columnas: list[str]
+    # Ficha del modelo (uso previsto, datos, métricas, limitaciones y gobernanza). Se expone
+    # aquí para que quien consume la API sepa dónde está documentado lo que está usando.
+    model_card: str = MODEL_CARD_URL

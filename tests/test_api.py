@@ -48,6 +48,7 @@ def test_model_info_expone_la_firma_del_modelo(cliente):
     info = respuesta.json()
     assert info["fuente"] == "local"
     assert len(info["columnas"]) == 12
+    assert info["model_card"].endswith("MODEL_CARD.md")
 
 
 def test_predict_regresa_una_prediccion_por_instancia(cliente, payload):

@@ -14,6 +14,9 @@ El proyecto responde tres preguntas de negocio:
 
 El ML Canvas y el diagrama de arquitectura se encuentran en `references/`.
 
+La ficha del modelo en producción (uso previsto, datos, evaluación por segmento, monitoreo,
+limitaciones y gobernanza) está en [`MODEL_CARD.md`](MODEL_CARD.md).
+
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
@@ -371,6 +374,11 @@ Cada pregunta tiene un registered model con nombre fijo y descripción:
 | P1 | `mibici-equipo32-p1-demanda` |
 | P2 | `mibici-equipo32-p2-riesgo` |
 | P3 | `mibici-equipo32-p3-grupos` |
+
+La [Model Card](MODEL_CARD.md) documenta la versión en producción de P1: uso previsto y fuera
+de alcance, datos y minimización, evaluación por segmento, limitaciones conocidas y el
+procedimiento de promoción y reversión. `/model-info` de la API regresa su ubicación en el campo
+`model_card`.
 
 **Esquema: aliases.** La versión en producción lleva el alias `champion` y, opcionalmente, la
 siguiente mejor alternativa lleva `challenger`. Se eligió este esquema en lugar de las etapas
