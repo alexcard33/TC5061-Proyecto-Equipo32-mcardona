@@ -24,11 +24,77 @@ limitaciones y gobernanza) está en [`MODEL_CARD.md`](MODEL_CARD.md).
     <img src="https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml/badge.svg" />
 </a>
 
-Última actualización: Entregable 7, operación del sistema: orquestación con Docker Compose,
-pipeline de CI/CD con GitHub Actions, pruebas de carga con Locust y análisis FinOps (ver
-[Operación](#operación-docker-compose-cicd-pruebas-de-carga-y-finops-entregable-7)). La API sirve
-la versión 3 del modelo de P1 (ver
-[Monitoreo de drift, reentrenamiento y A/B testing](#monitoreo-de-drift-reentrenamiento-y-ab-testing-entregable-8)).
+Estado: **entrega final** del proyecto integrador. La API sirve la versión 3 del modelo de P1
+(`mibici-equipo32-p1-demanda@champion`). La sección [Entrega final](#entrega-final) relaciona
+cada criterio de evaluación con su evidencia en el repositorio.
+
+## Entrega final
+
+Este repositorio reúne el ciclo de MLOps completo sobre P1, la pregunta de demanda: datos
+versionados, experimentos en MLflow, Model Registry con linaje, API contenerizada, orquestación con
+Compose, CI/CD con pruebas de carga, monitoreo de drift, A/B testing, FinOps y Model Card.
+
+**Modalidad.** Las fases del curso se desarrollaron en el Equipo 32. El registro de quién hizo qué
+está en [`CONTRIBUCIONES.md`](CONTRIBUCIONES.md). La consolidación de la entrega final (PR #28 a
+#34) se hizo de forma individual, con una rama y un Pull Request por grupo de cambios.
+
+### Entregables
+
+| Entregable | Ubicación |
+|---|---|
+| Repositorio | Este repositorio, rama `main` |
+| Presentación | `TC5061_Proyecto_Final_Equipo32.pdf`, subida a Canvas (problema, solución y decisiones de MLOps) |
+| Video de evidencia (2 a 5 min) | `TC5061_Proyecto_Final_Equipo32.mp4`, subido a Canvas; el enlace también viene en la presentación |
+| Model Card | [`MODEL_CARD.md`](MODEL_CARD.md) |
+| Capturas de evidencia | [`docs/capturas/`](docs/capturas/) |
+
+### Criterios de evaluación y evidencia
+
+| Criterio | Qué lo demuestra | Dónde verlo |
+|---|---|---|
+| **Estructura y experimentación** | Estructura Cookiecutter Data Science, ingesta reproducible con `data_version`, feature engineering sin fuga (`LeakageError`), código como MLflow Project con 7 entry points y experimentos en MLflow Tracking | [Organización](#project-organization), [`MLproject`](MLproject), [MLflow Project](#mlflow-project), [Experimentación](#experimentación-y-artefactos), [`mibici/features.py`](mibici/features.py), capturas `01` y `02` |
+| **Modelo y Registry** | Tres registered models versionados. Ciclo de vida por aliases (`champion` y `challenger`) con `estado_produccion` explícito, linaje en tags (run, commit, `data_version`, etapa) y evidencia del A/B en cada versión | [Model Registry y ciclo de vida](#model-registry-y-ciclo-de-vida), [`registry_estado.py`](mibici/modeling/registry_estado.py), capturas `10` a `13` |
+| **Despliegue y operación** | API FastAPI en un contenedor sin privilegios; Compose con API, MLflow, healthchecks y límites de recursos; Registry dentro de Compose y API en modo `registry`; CI/CD con lint, pruebas en 2 versiones de Python, build, despliegue con Compose, prueba de humo, **prueba de carga con umbrales** y publicación en GHCR; pruebas de carga por escalones con Locust | [API](#api-de-predicción-en-contenedor), [Levantar el sistema](#levantar-el-sistema), [Registry en Compose](#model-registry-dentro-de-compose), [CI/CD](#pipeline-de-cicd), [Locust](#pruebas-de-carga-con-locust), capturas `08`, `09` y `14` a `26` |
+| **Monitoreo, gobernanza y FinOps** | Drift con Evidently e interpretación por segmento; A/B pareado con regla fijada de antemano; análisis FinOps con costo por inferencia y optimizaciones; Model Card con uso previsto, limitaciones y procedimiento de reversión; validación de datos, bandit, pip-audit y búsqueda de secretos | [`reports/drift/RESUMEN.md`](reports/drift/RESUMEN.md), [`reports/ab_test/RESUMEN.md`](reports/ab_test/RESUMEN.md), [`reports/finops/FINOPS.md`](reports/finops/FINOPS.md), [`MODEL_CARD.md`](MODEL_CARD.md), [Pruebas y seguridad](#pruebas-validación-de-datos-y-seguridad), capturas `03` a `07` y `27` |
+| **Presentación y demo** | Presentación y video con la API respondiendo peticiones reales | Canvas. Los comandos de la demo están en el arranque rápido de abajo |
+
+### Arranque rápido (demo)
+
+Solo requiere Docker (o Podman) y Git. La imagen ya trae el modelo en producción, así que no hace
+falta entrenar ni tener los datos:
+
+```bash
+git clone https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona.git
+cd TC5061-Proyecto-Equipo32-mcardona
+docker compose up -d --build           # API en :8000 y MLflow en :5000
+docker compose ps                      # esperar a que ambos digan "healthy"
+curl http://localhost:8000/model-info
+curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" \
+  --data @tests/fixtures/predict_ejemplo.json
+```
+
+La documentación interactiva de la API está en http://localhost:8000/docs. Para ver el Model
+Registry dentro de Compose, se copia el registry local con `python -m mibici.modeling.copiar_registry`
+(requiere `mlflow.db`, ver [Model Registry dentro de Compose](#model-registry-dentro-de-compose)).
+Para bajar el sistema: `docker compose down`.
+
+En Windows sin `make`, cada objetivo del `Makefile` es un comando de Python que se puede copiar
+tal cual. Por ejemplo, `make sync-registry` equivale a
+`python -m mibici.modeling.sync_registry --tracking-uri sqlite:///mlflow.db`.
+
+### Ciclo de vida del modelo
+
+```
+datos abiertos MiBici ─► ingesta + data_version ─► features (sin fuga) ─► MLflow Project (train)
+        │                                                                        │
+        ▼                                                                        ▼
+monitoreo de drift (Evidently) ◄── API en producción ◄── export ◄── Model Registry (@champion)
+        │                              ▲                                         ▲
+        ▼                              │                                         │
+reentrenamiento ─► registro como @challenger ─► A/B pareado ─► promoción (mover el alias)
+                                       │
+               CI/CD: lint · pytest · build · Compose · humo · carga · GHCR
+```
 
 ## Project Organization
 
@@ -42,6 +108,8 @@ la versión 3 del modelo de P1 (ver
 ├── carga              <- Escenario de Locust, ejecución con docker stats y gráficas
 ├── finops             <- Cálculo del costo por inferencia
 ├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
+├── MODEL_CARD.md      <- Ficha del modelo en producción (uso, datos, evaluación, limitaciones)
+├── CONTRIBUCIONES.md  <- Registro de contribuciones del equipo
 ├── README.md          <- The top-level README for developers using this project.
 ├── api                <- API REST con FastAPI que sirve el modelo de P1
 │
