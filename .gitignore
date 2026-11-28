@@ -238,6 +238,8 @@ reports/deepchecks/*.html
 # evidencia del reporte de operación y FinOps
 .venv-carga/
 !reports/carga/**/*.csv
+# Las tablas del análisis FinOps también son evidencia y se versionan
+!reports/finops/*.csv
 
 # Credenciales y secretos: nunca se versionan (plantilla en .env.example)
 .env.*

@@ -1,0 +1,9 @@
+opcion,usd_hora,inferencias_s,usd_mes,usd_por_millon
+w1 en EC2 c7i.large (como el compose: API + MLflow),0.0892,165.22,65.116,0.15
+w2 en EC2 c7i.large,0.0892,334.29,65.116,0.0741
+w2 en EC2 c7i.large + Savings Plan 1 año,0.0645,334.29,47.085,0.0536
+w2 en EC2 c7i.large Spot,0.0292,334.29,21.316,0.0243
+w1 en Fargate 1 vCPU / 2 GB (sin MLflow),0.0494,165.22,36.0401,0.083
+w2 en Fargate 2 vCPU / 4 GB (sin MLflow),0.0987,334.29,72.0802,0.082
+w2 en Fargate ARM 2 vCPU / 4 GB (sin MLflow),0.079,334.29,57.67,0.0656
+"Piso: solo la CPU consumida (w2, vCPU Fargate)",,,,0.0385

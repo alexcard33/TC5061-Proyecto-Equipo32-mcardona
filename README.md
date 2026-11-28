@@ -952,6 +952,8 @@ Lo que encontramos al revisarlo con detalle:
 
 Las salidas están en `reports/drift/`: el reporte de Evidently en HTML y JSON, las tablas por
 variable, por mes y solo con estaciones comunes, y `resumen.json` con las cifras principales.
+La interpretación y la política de monitoreo recomendada están en
+[`reports/drift/RESUMEN.md`](reports/drift/RESUMEN.md).
 
 ### Versión 2 y A/B testing
 
@@ -985,7 +987,8 @@ La regla de decisión la fijamos en `config.py` antes de correr el A/B: el chall
 promueve si todo el intervalo de confianza de la diferencia queda debajo de cero. Se cumplió, así
 que la versión 3 pasó a `champion` y la versión 1 quedó como `challenger`. Las tablas completas, por
 mes y por tipo de estación, están en `reports/ab_test/`, y el run `p1_ab_test` de MLflow guarda las
-métricas, las predicciones y la decisión.
+métricas, las predicciones y la decisión. El diseño, los resultados por mes y por segmento y la decisión están
+resumidos en [`reports/ab_test/RESUMEN.md`](reports/ab_test/RESUMEN.md).
 
 ### Promoción
 
@@ -1195,7 +1198,8 @@ estaciones en lotes reduce el costo por petición; y con la demanda real de MiBi
 que se refresca cada 15 min, unas 0.5 inferencias/s) una instancia siempre encendida cuesta
 unos 46 USD por millón, por lo que la optimización principal es apagar cuando no hay uso
 (tarea programada o predicción por lotes) y sacar a MLflow del despliegue de servicio. El
-análisis completo está en el reporte de la entrega.
+análisis completo, con supuestos, capacidad medida, escenarios y optimizaciones, está en
+[`reports/finops/FINOPS.md`](reports/finops/FINOPS.md).
 
 ## Git y control de versiones
 
