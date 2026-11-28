@@ -111,6 +111,11 @@ drift:
 mlflow-ui:
 	mlflow server --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts --host 127.0.0.1 --port 5000
 
+## Corrige estado y descripción de las versiones del Model Registry (sin reentrenar)
+.PHONY: sync-registry
+sync-registry:
+	$(PYTHON_INTERPRETER) -m mibici.modeling.sync_registry --tracking-uri sqlite:///mlflow.db
+
 ## Descarga del Model Registry el modelo P1 @champion a models/serving/p1 (para la API)
 .PHONY: export-model
 export-model:

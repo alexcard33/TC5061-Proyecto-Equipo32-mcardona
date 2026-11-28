@@ -34,6 +34,14 @@ entry_points:
       question: {type: string, default: all}
     command: "python -m mibici.modeling.register --question {question}"
 
+  # Pone al día el estado de las versiones que ya están en el Model Registry sin registrar
+  # nada nuevo: estado_produccion según el alias, run_stage_of_work, resultado del A/B y
+  # descripción. Imprime la tabla de versiones que va en el README.
+  sync_registry:
+    parameters:
+      question: {type: string, default: all}
+    command: "python -m mibici.modeling.sync_registry --question {question}"
+
   # Versión 2 de P1 (Entregable 8): mismo modelo reentrenado con ene 2025 - jun 2026.
   # Deja el run p1_v2_reentrenado; después `register -P question=p1` lo registra como
   # nueva versión de mibici-equipo32-p1-demanda con el alias challenger.
