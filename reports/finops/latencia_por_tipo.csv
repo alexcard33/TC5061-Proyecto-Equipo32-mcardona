@@ -1,0 +1,7 @@
+configuracion,Name,Request Count,Median Response Time,95%
+w1,/health,1581,120,770
+w1,/predict [1 estación],9515,140,780
+w1,/predict [lote de 10],4730,150,790
+w2,/health,1857,11,260
+w2,/predict [1 estación],11087,65,330
+w2,/predict [lote de 10],5468,64,290
