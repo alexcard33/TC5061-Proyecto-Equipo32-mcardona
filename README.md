@@ -1040,6 +1040,37 @@ curl http://localhost:8000/health
 - Con Podman: `podman compose up -d --build` o `make compose-up COMPOSE="podman compose"`.
 - Para cambiar el número de workers sin reconstruir: `API_WORKERS=2 docker compose up -d`.
 
+### Model Registry dentro de Compose
+
+El MLflow de Compose arranca con su volumen vacío. Para que el Model Registry se vea dentro del
+sistema orquestado y la API pueda cargar el modelo desde él, se copia el registry local
+(`mlflow.db`) al servidor de Compose:
+
+```bash
+docker compose up -d --build
+python -m mibici.modeling.copiar_registry      # o: make compose-registry
+```
+
+El script recrea en el servidor de Compose las corridas de origen (mismos parámetros, métricas,
+tags y artefactos del modelo) y registra las versiones en el mismo orden, así que los números de
+versión, los aliases, los tags (`estado_produccion`, linaje, resultado del A/B) y las
+descripciones quedan igual que en el registry local. Cada corrida copiada guarda en
+`run_id_origen` el id de la corrida original, y cada versión guarda `version_origen`. Se puede
+correr las veces que haga falta: lo que ya se copió no se duplica. Si se borra el volumen
+(`docker compose down -v`), basta con volver a correrlo.
+
+Con el registry ya copiado, la API puede cargar el champion desde el servidor de MLflow en lugar
+del modelo empaquetado en la imagen:
+
+```bash
+MODEL_SOURCE=registry docker compose up -d api
+curl http://localhost:8000/model-info      # "fuente": "registry"
+```
+
+Para volver al modelo empaquetado: `docker compose up -d api` (sin la variable). El modo por
+defecto sigue siendo `local` porque la imagen no depende de que el servidor de MLflow tenga datos,
+que es lo que necesita el pipeline de CI/CD.
+
 ### Pipeline de CI/CD
 
 [![CI/CD](https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/alexcard33/TC5061-Proyecto-Equipo32-mcardona/actions/workflows/ci-cd.yml)
