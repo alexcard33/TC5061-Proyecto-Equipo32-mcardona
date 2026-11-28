@@ -4,7 +4,8 @@
 #   1. lint: revisa estilo y errores comunes con ruff.
 #   2. pruebas: corre pytest en Python 3.12 y 3.13 (matriz), incluidas las pruebas de la API.
 #   3. imagen-y-despliegue: construye las imágenes, levanta el sistema completo con
-#      docker compose y le hace una prueba de humo (health, model-info y una predicción).
+#      docker compose, le hace una prueba de humo (health, model-info y una predicción) y
+#      una prueba de carga corta con Locust que debe cumplir umbrales de errores y latencia.
 #   4. publicar: solo en main, sube la imagen de la API a GitHub Container Registry.
 
 name: CI/CD
@@ -175,6 +176,45 @@ jobs:
             jq . prediccion.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Prueba de carga corta con el mismo escenario de carga/locustfile.py, pero solo con dos
+      # escalones de 20 segundos (5 y 10 usuarios). La prueba completa por escalones, que
+      # alimenta el análisis de FinOps, se sigue corriendo a mano con carga/ejecutar_prueba.py.
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar Locust
+        run: python -m pip install locust==2.47.0
+
+      - name: Prueba de carga (Locust)
+        env:
+          CARGA_USUARIOS: "5,10"
+          CARGA_SEGUNDOS_ESCALON: "20"
+        run: |
+          mkdir -p reports/carga/ci
+          # --exit-code-on-error 0: Locust no corta el paso si hay fallas; quien decide si la
+          # prueba pasa es validar_carga.py, que además deja la tabla en el resumen del job.
+          locust -f carga/locustfile.py --headless \
+            --host http://127.0.0.1:8000 \
+            --csv reports/carga/ci/locust \
+            --html reports/carga/ci/locust_reporte.html \
+            --only-summary --exit-code-on-error 0
+
+      - name: Validar umbrales de carga
+        env:
+          CARGA_MAX_ERRORES_PCT: "0"
+          CARGA_MAX_P95_MS: "500"
+        run: python carga/validar_carga.py reports/carga/ci/locust_stats.csv
+
+      - name: Guardar resultados de la prueba de carga
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: carga-ci
+          path: reports/carga/ci/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Logs de los servicios
         if: failure()

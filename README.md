@@ -1082,7 +1082,7 @@ y de forma manual (pestaña Actions, *Run workflow*).
 |-----|----------|--------|
 | Lint (ruff) | `ruff check` y `ruff format --check` | Siempre |
 | Pruebas (Python 3.12 y 3.13) | `pytest` completo en matriz; guarda el resultado JUnit como artefacto | Siempre |
-| Imagen y despliegue con Compose | Construye las dos imágenes, levanta el sistema con `docker compose up --wait` y hace una prueba de humo contra `/health`, `/model-info` y `/predict` | Si lint y pruebas pasan |
+| Imagen y despliegue con Compose | Construye las dos imágenes, levanta el sistema con `docker compose up --wait`, hace una prueba de humo contra `/health`, `/model-info` y `/predict` y corre una prueba de carga corta con Locust que debe cumplir los umbrales (0% de errores, p95 ≤ 500 ms); guarda el CSV y el HTML de Locust como artefacto `carga-ci` | Si lint y pruebas pasan |
 | Publicar imagen en GHCR | Sube `ghcr.io/alexcard33/mibici-api` con las etiquetas `latest`, `1.0` y `sha-<commit>` | Solo en push a `main` |
 
 Optimizaciones: caché de pip, caché de capas de Docker en GitHub Actions (el job de imágenes
@@ -1142,6 +1142,27 @@ Con 1 worker la API satura un núcleo a partir de 100 usuarios y la latencia se 
 workers sostiene el SLO (p95 ≤ 200 ms) hasta 100 usuarios y procesa 33% más con 150. No hubo
 errores en ninguna corrida. Un lote de 10 estaciones tarda lo mismo que una sola (p50 de 64 y
 65 ms con 2 workers).
+
+**Prueba de carga en el pipeline.** Además de la prueba completa, que se corre a mano porque
+dura 6 minutos y alimenta el análisis FinOps, el job de despliegue del CI/CD corre una versión
+corta con el mismo escenario: dos escalones de 20 s (5 y 10 usuarios) contra el sistema que
+acaba de levantar con Compose. `carga/validar_carga.py` revisa la fila *Aggregated* de Locust y
+detiene el pipeline, antes de publicar la imagen, si hay errores o si el p95 pasa de 500 ms. El
+umbral es más holgado que el SLO de producción porque el runner de GitHub comparte 2 vCPU y su
+latencia varía; aun así, una regresión real en la API lo rebasa. La tabla queda en el resumen
+del job y los archivos de Locust en el artefacto `carga-ci`. Para reproducirla en local, con el
+sistema arriba y el entorno `.venv-carga` activo:
+
+```bash
+mkdir -p reports/carga/ci
+CARGA_USUARIOS=5,10 CARGA_SEGUNDOS_ESCALON=20 locust -f carga/locustfile.py --headless \
+  --host http://127.0.0.1:8000 --csv reports/carga/ci/locust \
+  --html reports/carga/ci/locust_reporte.html --only-summary --exit-code-on-error 0
+python carga/validar_carga.py reports/carga/ci/locust_stats.csv
+```
+
+Los umbrales se cambian con `CARGA_MAX_ERRORES_PCT` y `CARGA_MAX_P95_MS`. La carpeta
+`reports/carga/ci/` no se versiona.
 
 ### Análisis FinOps
 

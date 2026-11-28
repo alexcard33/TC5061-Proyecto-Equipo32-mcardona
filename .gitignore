@@ -249,3 +249,6 @@ credentials*.json
 
 # Resultados de pytest que deja el pipeline de CI (se suben como artifact, no al repo)
 reports/junit-*.xml
+
+# Resultados de la prueba de carga corta del pipeline (se suben como artifact, no al repo)
+reports/carga/ci/
