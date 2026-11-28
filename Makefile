@@ -153,6 +153,11 @@ compose-ps:
 compose-logs:
 	$(COMPOSE) logs -f
 
+## Copia el Model Registry local (mlflow.db) al MLflow de Compose (con el sistema arriba)
+.PHONY: compose-registry
+compose-registry:
+	$(PYTHON_INTERPRETER) -m mibici.modeling.copiar_registry --origen sqlite:///mlflow.db --destino http://127.0.0.1:5000
+
 ## Detiene y elimina los contenedores (los datos de MLflow se conservan en el volumen)
 .PHONY: compose-down
 compose-down:
