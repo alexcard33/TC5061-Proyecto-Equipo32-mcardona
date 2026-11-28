@@ -379,9 +379,44 @@ los aliases son el mecanismo vigente: el consumidor carga siempre `models:/<nomb
 promover o revertir un modelo consiste en mover el alias a otra versión, sin cambiar código ni
 borrar versiones. Cada versión conserva su propio linaje.
 
+**Estado de producción.** Cada versión lleva el tag `estado_produccion`, que se deriva de su
+alias para que el estado no dependa de interpretar la interfaz:
+
+| Alias | `estado_produccion` | Significado |
+|---|---|---|
+| `champion` | `produccion` | Versión que sirve la API y que cargan los consumidores |
+| `challenger` | `en_evaluacion` | Alternativa vigente; es la que se compara en el A/B |
+| sin alias | `retirado` | Se conserva por trazabilidad, pero ya no se usa |
+
+El registered model tiene además el tag `version_produccion` con el número de la versión
+champion.
+
 **Linaje de cada versión** (tags de la versión): `source_run_id`, `source_run_name`,
 `source_experiment`, `git_commit`, `git_sucio`, `data_version`, `question`, `model_family`,
-`stage_of_work` y, en P2, `umbral_decision`.
+`run_stage_of_work` y, en P2, `umbral_decision`. `run_stage_of_work` es la etapa del
+experimento en que se hizo la corrida (baseline, search o candidate); antes se copiaba como
+`stage_of_work` y en la versión se confundía con su estado. Las versiones que participaron en
+el A/B guardan `ab_test_run_id`, `ab_test_decision`, `ab_test_rol` (papel que tenían en la
+prueba) y `ab_test_resultado` (ganadora o perdedora).
+
+La descripción de cada versión resume en una línea su estado, la corrida de origen, el commit,
+la versión de datos, la métrica principal y, si aplica, el resultado del A/B.
+
+**Versiones registradas:**
+
+| Modelo | Versión | Alias | Estado | Corrida de origen | `data_version` | Métrica principal |
+|---|---|---|---|---|---|---|
+| `mibici-equipo32-p1-demanda` | 1 | challenger | en_evaluacion | `p1_candidato_poisson_lineal` | `7aa5e436d887` | test_mae = 5.4098 |
+| `mibici-equipo32-p1-demanda` | 2 | - | retirado | `p1_candidato_hgb_tuneado` | `7aa5e436d887` | test_mae = 5.9037 |
+| `mibici-equipo32-p1-demanda` | 3 | champion | produccion | `p1_v2_reentrenado` | `7aa5e436d887+8460b856c7e8` | val_mae = 5.5630 |
+| `mibici-equipo32-p2-riesgo` | 1 | champion | produccion | `p2_candidato_hgb_tuneado` | `7aa5e436d887` | test_pr_auc = 0.3995 |
+| `mibici-equipo32-p2-riesgo` | 2 | challenger | en_evaluacion | `p2_candidato_hgb` | `7aa5e436d887` | test_pr_auc = 0.3941 |
+| `mibici-equipo32-p3-grupos` | 1 | champion | produccion | `p3_kmeans_final` | `7aa5e436d887` | test_silhouette = 0.1666 |
+| `mibici-equipo32-p3-grupos` | 2 | challenger | en_evaluacion | `p3_candidato_gmm_k4` | `7aa5e436d887` | test_silhouette = 0.1146 |
+
+La métrica de P1 v3 es de validación porque el reentrenamiento usa hasta jun 2026 y no deja
+partición de test; la comparación directa entre v1 y v3 sobre los mismos datos (ago-oct 2026)
+es la del A/B testing, donde v3 resultó ganadora (ver *Versión 2 y A/B testing*).
 
 **Registro:** el modelo elegido de cada pregunta se define en `REGISTRO_MODELOS` de `config.py`
 (run_name del champion y del challenger) y se registra con:
@@ -391,12 +426,21 @@ mlflow run . -e register --env-manager local
 ```
 
 El comando es idempotente (si la corrida ya tiene versión, la reutiliza), copia el linaje,
-asigna los aliases, marca con `alias=ninguno` las versiones que perdieron el suyo y verifica la
-carga del modelo en producción:
+asigna los aliases, actualiza estado y descripción de todas las versiones (las que perdieron su
+alias quedan como `retirado` con `alias=ninguno`) y verifica la carga del modelo en producción:
 
 ```python
 import mlflow
 modelo = mlflow.pyfunc.load_model("models:/mibici-equipo32-p1-demanda@champion")
+```
+
+Para poner al día un registry que ya existe sin registrar ni mover aliases (por ejemplo, después
+de cambiar el esquema de estados), se usa `sync_registry`. Imprime al final la tabla de versiones
+de arriba:
+
+```bash
+mlflow run . -e sync_registry --env-manager local
+# o, contra la base local: make sync-registry
 ```
 
 ## P1 — Regresión de viajes diarios por estación

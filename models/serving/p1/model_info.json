@@ -11,7 +11,6 @@
   "tags": {
     "question": "p1",
     "model_family": "glm_poisson",
-    "stage_of_work": "candidate",
     "git_commit": "01c6d6cbd0682827f83a89ceec37c079a01255d0",
     "git_sucio": "False",
     "data_version": "7aa5e436d887+8460b856c7e8",
@@ -21,7 +20,11 @@
     "lifecycle_scheme": "aliases",
     "alias": "champion",
     "ab_test_run_id": "8d7250880a874a44ad62de62ac3ef706",
-    "ab_test_decision": "challenger"
+    "ab_test_decision": "challenger",
+    "run_stage_of_work": "candidate",
+    "estado_produccion": "produccion",
+    "ab_test_rol": "challenger",
+    "ab_test_resultado": "ganadora"
   },
   "input_columns": [
     "dia_semana",
@@ -38,5 +41,5 @@
     "capacidad"
   ],
   "tracking_uri": "sqlite:///mlflow.db",
-  "exported_at": "2026-11-16T02:16:09+00:00"
+  "exported_at": "2026-11-28T03:25:49+00:00"
 }

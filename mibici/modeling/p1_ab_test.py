@@ -65,6 +65,7 @@ from mibici.features import P1_FEATURES
 from mibici.modeling.mlflow_utils import consola_utf8, obtener_git_commit, registrar_artefactos
 from mibici.modeling.p1_reentrenamiento import version_de_datos
 from mibici.modeling.p1_regresion import evaluar
+from mibici.modeling.registry_estado import sincronizar_versiones
 from mibici.panel_p1 import cargar_capacidad, cargar_viajes_p1, construir_features, cortar
 
 app = typer.Typer()
@@ -438,6 +439,10 @@ def ejecutar(tracking_uri: str = MLFLOW_TRACKING_URI) -> dict:
         client.set_model_version_tag(
             nombre, v.version, "ab_test_decision", decision["version_vigente"]
         )
+
+    # Con la evidencia del A/B ya en las versiones, se actualiza qué papel tuvo cada una, cuál
+    # ganó y su descripción. La promoción (mover los aliases) sigue siendo un paso aparte.
+    sincronizar_versiones(client, nombre, "p1")
 
     logger.success(
         f"MAE champion {comparacion['mae_champion']:.3f} | challenger "
